@@ -250,32 +250,56 @@ with tab_zoznam:
         # Pre každé zariadenie vykreslíme prehľadný riadok
         for stroj in vsetky_stroje:
             with st.container():
-                # Vytvoríme stĺpce: 3 pre text a 1 pre tlačidlo na zmazanie
-                col_text1, col_text2, col_text3, col_akcia = st.columns([2, 2, 3, 1])
+                # Vytvoríme stĺpce: 2 pre základné texty, 1 veľký pre zoznam revízií a 1 pre tlačidlo
+                col_nazov, col_miesto, col_revizie, col_akcia = st.columns([2, 2, 4, 1])
                 
-                with col_text1:
-                    st.markdown(f"**Stroj:** {stroj['nazov']}")
-                with col_text2:
-                    st.markdown(f"**Umiestnenie:** {stroj['umiestnenie'] or 'Nezadané'}")
-                with col_text3:
-                    # Rýchly prehľad dvoch hlavných revízií
-                    rev = stroj['nasledujuca_revizia']
-                    skuska = stroj['nasledujuca_revizna_skuska']
-                    pekna_rev = date.fromisoformat(rev).strftime('%d.%m.%Y') if rev else 'Nezadaná'
-                    pekna_skuska = date.fromisoformat(skuska).strftime('%d.%m.%Y') if skuska else 'Nezadaná'
-                    st.markdown(f"<small>Ďalšia Revízia: {pekna_rev}<br>Ďalšia R. Skúška: {pekna_skuska}</small>", unsafe_allow_html=True)
+                with col_nazov:
+                    st.markdown(f"### {stroj['nazov']}")
+                with col_miesto:
+                    st.markdown(f"📍 **Umiestnenie:**\n{stroj['umiestnenie'] or 'Nezadané'}")
+                
+                with col_revizie:
+                    st.markdown("**📅 Nasledujúce termíny kontrol:**")
+                    
+                    # Pomocná vnútorná funkcia na pekné sformátovanie dátumu alebo textu "nevykonáva sa"
+                    def formatuj_termin(iso_datum):
+                        if iso_datum:
+                            r, m, d = iso_datum.split('-')
+                            return f"**{d}.{m}.{r}**"
+                        return "*nevykonáva sa*"
+
+                    # Vytiahneme a sformátujeme všetky termíny
+                    n_rev = formatuj_termin(stroj['nasledujuca_revizia'])
+                    n_rev_sk = formatuj_termin(stroj['nasledujuca_revizna_skuska'])
+                    n_pod_ok = formatuj_termin(stroj['nasledujuca_podrobna_prehliadka_ok'])
+                    n_odb_pr = formatuj_termin(stroj['nasledujuca_odborna_prehliadka'])
+                    n_odb_sk = formatuj_termin(stroj['nasledujuca_odborna_skuska'])
+                    n_urad = formatuj_termin(stroj['nasledujuca_uradna_skuska'])
+                    
+                    # Výpis pod seba
+                    st.markdown(f"""
+                    - **Revízia:** {n_rev}
+                    - **Revízna skúška:** {n_rev_sk}
+                    - **Podrobná prehliadka OK:** {n_pod_ok}
+                    - **Odborná prehliadka:** {n_odb_pr}
+                    - **Odborná skúška:** {n_odb_sk}
+                    - **Úradná skúška:** {n_urad}
+                    """, unsafe_allow_html=True)
+                    
+                    # Ak stroj obsahuje aj geometriu dráhy, vypíšeme ju tiež
+                    if stroj.get('vykonava_sa_geometria'):
+                        n_geom = formatuj_termin(stroj['nasledujuca_geometria'])
+                        st.markdown(f"- **Geometria žeriavovej dráhy:** {n_geom}")
                 
                 with col_akcia:
-                    # Unikátny kľúč pre každé tlačidlo podľa ID stroja
+                    st.write("")  # Kúsok miesta, aby bolo tlačidlo nižšie
                     kliknute_zmazat = st.button("❌ Zmazať", key=f"zmaz_{stroj['id']}")
                     if kliknute_zmazat:
                         try:
-                            # Príkaz na zmazanie zo Supabase databázy podľa ID
                             supabase.table("stroje").delete().eq("id", stroj["id"]).execute()
-                            st.success(f"Stroj bol úspešne vymazaný!")
-                            st.rerun()  # Aktualizuje stránku, aby stroj hneď zmizol
+                            st.success(f"Stroj vymazaný!")
+                            st.rerun()
                         except Exception as e:
                             st.error(f"Chyba pri mazaní: {e}")
             
             st.markdown("---")  # Čiara medzi strojmi
-

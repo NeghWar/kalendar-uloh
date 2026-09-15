@@ -214,15 +214,17 @@ with tab_pridat:
 with tab_zoznam:
     st.header("📋 Kompletný zoznam a úprava strojov")
 
-        # === 🟢 EXPORT DO EXCELU 🟢 ===
+            # === 🟢 VYLEPŠENÝ EXPORT DO EXCELU 🟢 ===
     if vsetky_stroje:
         import pandas as pd
         import io
+        from openpyxl.styles import Font, PatternFill, Border, Side
+        from openpyxl.utils import get_column_letter
 
         # Prevedieme dáta z databázy na prehľadnú tabuľku (DataFrame)
         df = pd.DataFrame(vsetky_stroje)
         
-        # Vyberieme a premenujeme len dôležité stĺpce pre Excel, aby bol čistý
+        # Vyberieme a premenujeme len dôležité stĺpce pre Excel
         stlpce_pre_excel = {
             "nazov": "Názov stroja",
             "umiestnenie": "Umiestnenie",
@@ -235,27 +237,67 @@ with tab_zoznam:
             "nasledujuca_geometria": "Ďalšia Geometria dráhy"
         }
         
-        # Filtrujeme iba tie stĺpce, ktoré v databáze reálne máme
         existujuce_stlpce = [st for st in stlpce_pre_excel.keys() if st in df.columns]
         df_export = df[existujuce_stlpce].rename(columns=stlpce_pre_excel)
         
-        # Nahradíme chýbajúce dátumy textom, aby to v Exceli nevyzeralo ako chyba
+        # 🔄 REFORMÁTOVANIE DÁTUMOV na DD.MM.YYYY
+        stlpce_s_datumami = [
+            "Ďalšia Revízia", "Ďalšia Revízna skúška", "Ďalšia Podrobná prehliadka OK",
+            "Ďalšia Odborná prehliadka", "Ďalšia Odborná skúška", "Ďalšia Úradná skúška", 
+            "Ďalšia Geometria dráhy"
+        ]
+        
+        for col in df_export.columns:
+            if col in stlpce_s_datumami:
+                # Prevedieme textový dátum YYYY-MM-DD na objekt dátumu a potom na formát DD.MM.YYYY
+                df_export[col] = pd.to_datetime(df_export[col], errors='coerce').dt.strftime('%d.%m.%Y')
+
+        # Nahradíme chýbajúce dátumy textom "nevykonáva sa"
         df_export = df_export.fillna("nevykonáva sa")
 
-        # Vytvoríme virtuálny súbor v pamäti, aby ho bolo možné stiahnuť
+        # Vytvoríme virtuálny súbor v pamäti
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
             df_export.to_excel(writer, index=False, sheet_name='Revízie Strojov')
+            
+            # 🎨 GRAFICKÁ ÚPRAVA SÚBORU (openpyxl)
+            workbook = writer.book
+            worksheet = writer.sheets['Revízie Strojov']
+            
+            # Štýly pre hlavičku
+            hlavicka_font = Font(name='Arial', size=11, bold=True, color='FFFFFF') # Biele hrubé písmo
+            hlavicka_fill = PatternFill(start_color='1F4E78', end_color='1F4E78', fill_type='solid') # Tmavomodré podfarbenie
+            tenka_ciara = Side(border_style="thin", color="D9D9D9")
+            mriezka = Border(left=tenka_ciara, right=tenka_ciara, top=tenka_ciara, bottom=tenka_ciara)
+            
+            # Formátujeme prvý riadok (hlavičku)
+            for cell in worksheet[1]:
+                cell.font = hlavicka_font
+                cell.fill = hlavicka_fill
+                cell.border = mriezka
+            
+            # Automatické prispôsobenie šírky stĺpcov podľa dĺžky textu, aby sa nič neorezávalo
+            for col in worksheet.columns:
+                max_len = max(len(str(cell.value or '')) for cell in col)
+                col_letter = get_column_letter(col[0].column)
+                worksheet.column_dimensions[col_letter].width = max(max_len + 3, 12)
+                
+                # Pridáme jemnú mriežku aj pre všetky dátové bunky
+                if col[0].row > 1:
+                    for cell in col:
+                        if cell.row > 1:
+                            cell.border = mriezka
         
-        # Tlačidlo pre priame stiahnutie súboru
+        # Tlačidlo pre stiahnutie
         st.download_button(
-            label="🟢 Stiahnuť celú databázu do Excelu (.xlsx)",
+            label="🟢 Stiahnuť profesionálny Excel (.xlsx)",
             data=buffer.getvalue(),
             file_name=f"revizie_strojov_{date.today().strftime('%d_%m_%Y')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         st.markdown("---")
     # === --------------------- ===
+
     
     # 🧠 PRIORITNÁ FUNKCIA (CALLBACK): Vykoná sa ihneď pri kliknutí na uloženie formulára
     def uloz_zmeny_do_cloudu(stroj_id, upraveny_slovnik):

@@ -81,7 +81,7 @@ if st.sidebar.button("🔒 Odhlásiť sa"):
 tab_prehlad, tab_kalendar, tab_pridat = st.tabs([
     "🔔 Prehľad a Upozornenia", 
     "📅 Mesačný Kalendár", 
-    "➕ Pridať / Evidovať Stroj"
+    "➕ Pridať / Evidovať Stroj",
     "📋 Zoznam strojov a úprava"
 ])
 
@@ -234,7 +234,7 @@ with tab_kalendar:
                     
     if not nasli_sa_v_mesiaci:
         st.text("Pre tento mesiac nie sú naplánované žiadne revízie.")
-        
+
 # ==========================================
 # ZÁLOŽKA 4: ZOZNAM STROJOV A MAZANIE
 # ==========================================

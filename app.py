@@ -239,19 +239,21 @@ with tab_kalendar:
         st.text("Pre tento mesiac nie sú naplánované žiadne revízie.")
 
 # ==========================================
-# ZÁLOŽKA 4: ZOZNAM STROJOV A MAZANIE
+# ZÁLOŽKA 4: ZOZNAM STROJOV, ÚPRAVA A MAZANIE
 # ==========================================
 with tab_zoznam:
-    st.header("📋 Kompletný zoznam evidovaných strojov")
+    st.header("📋 Kompletný zoznam a úprava strojov")
     
     if not vsetky_stroje:
         st.info("V databáze nie sú žiadne stroje.")
     else:
+        dnesny_den = date.today()
+        
         # Pre každé zariadenie vykreslíme prehľadný riadok
         for stroj in vsetky_stroje:
             with st.container():
-                # Vytvoríme stĺpce: 2 pre základné texty, 1 veľký pre zoznam revízií a 1 pre tlačidlo
-                col_nazov, col_miesto, col_revizie, col_akcia = st.columns([2, 2, 4, 1])
+                # Vytvoríme stĺpce pre základné zobrazenie
+                col_nazov, col_miesto, col_revizie, col_akcia = st.columns(4)
                 
                 with col_nazov:
                     st.markdown(f"### {stroj['nazov']}")
@@ -261,39 +263,45 @@ with tab_zoznam:
                 with col_revizie:
                     st.markdown("**📅 Nasledujúce termíny kontrol:**")
                     
-                    # Pomocná vnútorná funkcia na pekné sformátovanie dátumu alebo textu "nevykonáva sa"
-                    def formatuj_termin(iso_datum):
+                    # 🎨 Funkcia na farebné rozlíšenie jednotlivých dátumov (Zelená / Červená)
+                    def formatuj_s_farbou(iso_datum):
                         if iso_datum:
+                            termin_date = date.fromisoformat(iso_datum)
                             r, m, d = iso_datum.split('-')
-                            return f"**{d}.{m}.{r}**"
-                        return "*nevykonáva sa*"
+                            pekny_format = f"{d}.{m}.{r}"
+                            
+                            if termin_date < dnesny_den:
+                                return f"<span style='color:#ff4b4b; font-weight:bold;'>{pekny_format} (PO TERMÍNE! 🚨)</span>"
+                            else:
+                                return f"<span style='color:#09ab3b; font-weight:bold;'>{pekny_format} (Platná ✅)</span>"
+                        return "<span style='color:#777777;'>*nevykonáva sa*</span>"
 
-                    # Vytiahneme a sformátujeme všetky termíny
-                    n_rev = formatuj_termin(stroj['nasledujuca_revizia'])
-                    n_rev_sk = formatuj_termin(stroj['nasledujuca_revizna_skuska'])
-                    n_pod_ok = formatuj_termin(stroj['nasledujuca_podrobna_prehliadka_ok'])
-                    n_odb_pr = formatuj_termin(stroj['nasledujuca_odborna_prehliadka'])
-                    n_odb_sk = formatuj_termin(stroj['nasledujuca_odborna_skuska'])
-                    n_urad = formatuj_termin(stroj['nasledujuca_uradna_skuska'])
+                    # Formátovanie jednotlivých revízií do farebného HTML textu
+                    f_rev = formatuj_s_farbou(stroj['nasledujuca_revizia'])
+                    f_rev_sk = formatuj_s_farbou(stroj['nasledujuca_revizna_skuska'])
+                    f_pod_ok = formatuj_s_farbou(stroj['nasledujuca_podrobna_prehliadka_ok'])
+                    f_odb_pr = formatuj_s_farbou(stroj['nasledujuca_odborna_prehliadka'])
+                    f_odb_sk = formatuj_s_farbou(stroj['nasledujuca_odborna_skuska'])
+                    f_urad = formatuj_s_farbou(stroj['nasledujuca_uradna_skuska'])
                     
-                    # Výpis pod seba
                     st.markdown(f"""
-                    - **Revízia:** {n_rev}
-                    - **Revízna skúška:** {n_rev_sk}
-                    - **Podrobná prehliadka OK:** {n_pod_ok}
-                    - **Odborná prehliadka:** {n_odb_pr}
-                    - **Odborná skúška:** {n_odb_sk}
-                    - **Úradná skúška:** {n_urad}
+                    - **Revízia:** {f_rev}
+                    - **Revízna skúška:** {f_rev_sk}
+                    - **Podrobná prehliadka OK:** {f_pod_ok}
+                    - **Odborná prehliadka:** {f_odb_pr}
+                    - **Odborná skúška:** {f_odb_sk}
+                    - **Úradná skúška:** {f_urad}
                     """, unsafe_allow_html=True)
                     
-                    # Ak stroj obsahuje aj geometriu dráhy, vypíšeme ju tiež
                     if stroj.get('vykonava_sa_geometria'):
-                        n_geom = formatuj_termin(stroj['nasledujuca_geometria'])
-                        st.markdown(f"- **Geometria žeriavovej dráhy:** {n_geom}")
+                        f_geom = formatuj_s_farbou(stroj['nasledujuca_geometria'])
+                        st.markdown(f"- **Geometria žeriavovej dráhy:** {f_geom}", unsafe_allow_html=True)
                 
                 with col_akcia:
-                    st.write("")  # Kúsok miesta, aby bolo tlačidlo nižšie
+                    st.write("") 
+                    kliknute_upravit = st.button("✏️ Upraviť", key=f"edit_btn_{stroj['id']}")
                     kliknute_zmazat = st.button("❌ Zmazať", key=f"zmaz_{stroj['id']}")
+                    
                     if kliknute_zmazat:
                         try:
                             supabase.table("stroje").delete().eq("id", stroj["id"]).execute()
@@ -301,5 +309,86 @@ with tab_zoznam:
                             st.rerun()
                         except Exception as e:
                             st.error(f"Chyba pri mazaní: {e}")
-            
-            st.markdown("---")  # Čiara medzi strojmi
+
+                # --- SEKCIA PRE EDITÁCIU ---
+                if f"editovanie_{stroj['id']}" not in st.session_state:
+                    st.session_state[f"editovanie_{stroj['id']}"] = False
+
+                if kliknute_upravit:
+                    st.session_state[f"editovanie_{stroj['id']}"] = not st.session_state[f"editovanie_{stroj['id']}"]
+                    st.rerun()
+
+                if st.session_state[f"editovanie_{stroj['id']}"]:
+                    st.info(f"🛠️ Režim úpravy pre stroj: **{stroj['nazov']}**")
+                    
+                    # Načítanie aktuálnych dátumov (opravený preklep 'stread' na 'stroj')
+                    curr_rev = date.fromisoformat(stroj['posledna_revizia']) if stroj['posledna_revizia'] else None
+                    curr_rev_sk = date.fromisoformat(stroj['posledna_revizna_skuska']) if stroj['posledna_revizna_skuska'] else None
+                    curr_pod_ok = date.fromisoformat(stroj['posledna_podrobna_prehliadka_ok']) if stroj['posledna_podrobna_prehliadka_ok'] else None
+                    curr_odb_pr = date.fromisoformat(stroj['posledna_odborna_prehliadka']) if stroj['posledna_odborna_prehliadka'] else None
+                    curr_odb_sk = date.fromisoformat(stroj['posledna_odborna_skuska']) if stroj['posledna_odborna_skuska'] else None
+                    curr_urad = date.fromisoformat(stroj['posledna_uradna_skuska']) if stroj['posledna_uradna_skuska'] else None
+                    curr_geom = date.fromisoformat(stroj['posledna_geometria']) if stroj['posledna_geometria'] else None
+
+                    with st.form(key=f"form_edit_{stroj['id']}", clear_on_submit=False):
+                        e_col1, e_col2 = st.columns(2)
+                        
+                        with e_col1:
+                            new_rev = st.date_input("Posledná Revízia:", curr_rev)
+                            new_rev_sk = st.date_input("Posledná Revízna skúška:", curr_rev_sk)
+                            
+                            # Správne zátvorky pre periódu revíznej skúšky (2 alebo 3 roky)
+                            list_rev = [2, 3]
+                            p_rev_index = list_rev.index(stroj['perioda_reviznej_skusky']) if stroj['perioda_reviznej_skusky'] in list_rev else 0
+                            new_p_rev = st.selectbox("Perióda Revíznej skúšky (roky):", list_rev, index=p_rev_index)
+                            
+                            new_pod_ok = st.date_input("Posledná Podrobná prehliadka OK (5r):", curr_pod_ok)
+                        
+                        with e_col2:
+                            new_urad = st.date_input("Posledná Úradná skúška:", curr_urad)
+                            
+                            # Správne zátvorky pre periódu úradnej skúšky (5, 6 alebo 10 rokov)
+                            list_urad = [5, 6, 10]
+                            p_urad_index = list_urad.index(stroj['perioda_uradnej_skusky']) if stroj['perioda_uradnej_skusky'] in list_urad else 0
+                            new_p_urad = st.selectbox("Perióda Úradnej skúšky (roky):", list_urad, index=p_urad_index)
+                            
+                            new_odb_pr = st.date_input("Posledná Odborná prehliadka:", curr_odb_pr)
+                            new_odb_sk = st.date_input("Posledná Odborná skúška:", curr_odb_sk)
+                        
+                        st.markdown("---")
+                        new_ma_geom = st.checkbox("Vykonáva sa Geometrické zameranie?", value=stroj['vykonava_sa_geometria'])
+                        new_geom = st.date_input("Posledná Geometria dráhy:", curr_geom) if new_ma_geom else None
+                        
+                        tlacidlo_upravit_uloz = st.form_submit_button("💾 Uložiť zmeny stroja")
+                        
+                    if tlacidlo_upravit_uloz:
+                        # Prepočty
+                        n_rev = vypocitaj_nasledujuci(new_rev, 1)
+                        n_rev_sk = vypocitaj_nasledujuci(new_rev_sk, new_p_rev)
+                        n_pod_ok = vypocitaj_nasledujuci(new_pod_ok, 5)
+                        n_urad = vypocitaj_nasledujuci(new_urad, new_p_urad)
+                        n_odb_pr = vypocitaj_nasledujuci(new_odb_pr, 1)
+                        n_odb_sk = vypocitaj_nasledujuci(new_odb_sk, 1)
+                        n_geom = vypocitaj_nasledujuci(new_geom, 10) if new_ma_geom else None
+                        
+                        upravene_data = {
+                            "posledna_revizia": new_rev.isoformat() if new_rev else None,
+                            "nasledujuca_revizia": n_rev.isoformat() if n_rev else None,
+                            "posledna_revizna_skuska": new_rev_sk.isoformat() if new_rev_sk else None,
+                            "perioda_reviznej_skusky": new_p_rev,
+                            "nasledujuca_revizna_skuska": n_rev_sk.isoformat() if n_rev_sk else None,
+                            "posledna_podrobna_prehliadka_ok": new_pod_ok.isoformat() if new_pod_ok else None,
+                            "nasledujuca_podrobna_prehliadka_ok": n_pod_ok.isoformat() if n_pod_ok else None,
+                            "posledna_uradna_skuska": new_urad.isoformat() if new_urad else None,
+                            "perioda_uradnej_skusky": new_p_urad,
+                            "nasledujuca_uradna_skuska": n_urad.isoformat() if n_urad else None,
+                            "posledna_odborna_prehliadka": new_odb_pr.isoformat() if new_odb_pr else None,
+                            "nasledujuca_odborna_prehliadka": n_odb_pr.isoformat() if n_odb_pr else None,
+                            "posledna_odborna_skuska": new_odb_sk.isoformat() if new_odb_sk else None,
+                            "nasledujuca_odborna_skuska": n_odb_sk.isoformat() if n_odb_sk else None,
+                            "vykonava_sa_geometria": new_ma_geom,
+                            "posledna_geometria": new_geom.isoformat() if new_geom else None,
+                            "nasledujuca_geometria": n_geom.isoformat() if n_geom else None,
+                        }
+                        
+                        try:

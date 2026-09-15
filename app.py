@@ -116,6 +116,8 @@ with tab_pridat:
             perioda_uradnej = st.selectbox("Perióda Úradnej skúšky (roky):", [5, 6, 10])
             
             p_odborna_pr = st.date_input("Posledná Odborná prehliadka (opakuje sa ročne):", None)
+            interval_odborna_pr = st.selectbox("Interval Odbornej prehliadky:", [1.0, 0.5], format_func=lambda x: "1 rok (ročne)" if x == 1.0 else "0.5 roka (polročne)")
+
             p_odborna_sk = st.date_input("Posledná Odborná skúška (opakuje sa ročne):", None)
             
         st.markdown("---")
@@ -131,7 +133,7 @@ with tab_pridat:
         n_revizna_sk = vypocitaj_nasledujuci(p_revizna_sk, perioda_reviznej)
         n_podrobna_ok = vypocitaj_nasledujuci(p_podrobna_ok, 5)
         n_uradna = vypocitaj_nasledujuci(p_uradna, perioda_uradnej)
-        n_odborna_pr = vypocitaj_nasledujuci(p_odborna_pr, 1)
+        n_odborna_pr = vypocitaj_nasledujuci(p_odborna_pr, interval_odborna_pr)
         n_odborna_sk = vypocitaj_nasledujuci(p_odborna_sk, 1)
         n_geometria = vypocitaj_nasledujuci(p_geometria, 10) if ma_geometriu else None
 

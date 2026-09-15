@@ -321,7 +321,7 @@ with tab_zoznam:
                 if st.session_state[f"editovanie_{stroj['id']}"]:
                     st.info(f"🛠️ Režim úpravy pre stroj: **{stroj['nazov']}**")
                     
-                    # Načítanie aktuálnych dátumov (opravený preklep 'stread' na 'stroj')
+                    # Načítanie aktuálnych dátumov
                     curr_rev = date.fromisoformat(stroj['posledna_revizia']) if stroj['posledna_revizia'] else None
                     curr_rev_sk = date.fromisoformat(stroj['posledna_revizna_skuska']) if stroj['posledna_revizna_skuska'] else None
                     curr_pod_ok = date.fromisoformat(stroj['posledna_podrobna_prehliadka_ok']) if stroj['posledna_podrobna_prehliadka_ok'] else None
@@ -337,7 +337,7 @@ with tab_zoznam:
                             new_rev = st.date_input("Posledná Revízia:", curr_rev)
                             new_rev_sk = st.date_input("Posledná Revízna skúška:", curr_rev_sk)
                             
-                            # Správne zátvorky pre periódu revíznej skúšky (2 alebo 3 roky)
+                            # Opravené zoznamy periód
                             list_rev = [2, 3]
                             p_rev_index = list_rev.index(stroj['perioda_reviznej_skusky']) if stroj['perioda_reviznej_skusky'] in list_rev else 0
                             new_p_rev = st.selectbox("Perióda Revíznej skúšky (roky):", list_rev, index=p_rev_index)
@@ -347,7 +347,6 @@ with tab_zoznam:
                         with e_col2:
                             new_urad = st.date_input("Posledná Úradná skúška:", curr_urad)
                             
-                            # Správne zátvorky pre periódu úradnej skúšky (5, 6 alebo 10 rokov)
                             list_urad = [5, 6, 10]
                             p_urad_index = list_urad.index(stroj['perioda_uradnej_skusky']) if stroj['perioda_uradnej_skusky'] in list_urad else 0
                             new_p_urad = st.selectbox("Perióda Úradnej skúšky (roky):", list_urad, index=p_urad_index)
@@ -362,7 +361,7 @@ with tab_zoznam:
                         tlacidlo_upravit_uloz = st.form_submit_button("💾 Uložiť zmeny stroja")
                         
                     if tlacidlo_upravit_uloz:
-                        # Prepočty
+                        # Prepočty termínov
                         n_rev = vypocitaj_nasledujuci(new_rev, 1)
                         n_rev_sk = vypocitaj_nasledujuci(new_rev_sk, new_p_rev)
                         n_pod_ok = vypocitaj_nasledujuci(new_pod_ok, 5)
@@ -381,7 +380,7 @@ with tab_zoznam:
                             "nasledujuca_podrobna_prehliadka_ok": n_pod_ok.isoformat() if n_pod_ok else None,
                             "posledna_uradna_skuska": new_urad.isoformat() if new_urad else None,
                             "perioda_uradnej_skusky": new_p_urad,
-                            "nasledujuca_uradna_skuska": n_urad.isoformat() if n_urad else None,
+                            "nasledujuca_uradna_skuska": n_urad.isoformat() if n_urad =="" else None,
                             "posledna_odborna_prehliadka": new_odb_pr.isoformat() if new_odb_pr else None,
                             "nasledujuca_odborna_prehliadka": n_odb_pr.isoformat() if n_odb_pr else None,
                             "posledna_odborna_skuska": new_odb_sk.isoformat() if new_odb_sk else None,
@@ -392,3 +391,5 @@ with tab_zoznam:
                         }
                         
                         try:
+                            supabase.table("stroje").update(upravene_data).eq("id", stroj["id"]).execute()
+                            st.success("Zmeny boli úspešne uložené do cloudu!")

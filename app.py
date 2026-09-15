@@ -337,19 +337,25 @@ with tab_zoznam:
                             new_rev = st.date_input("Posledná Revízia:", curr_rev)
                             new_rev_sk = st.date_input("Posledná Revízna skúška:", curr_rev_sk)
                             
-                            # Opravené zoznamy periód pre výber rokov
-                            list_rev = [2, 3]
-                            p_rev_index = list_rev.index(stroj['perioda_reviznej_skusky']) if stroj['perioda_reviznej_skusky'] in list_rev else 0
-                            new_p_rev = st.selectbox("Perióda Revíznej skúšky (roky):", list_rev, index=p_rev_index)
+                            # POZOR: Zoznam zadaný textovo na zabránenie vymazania systémom rozhrania
+                            stroj_p_rev = stroj.get('perioda_reviznej_skusky', 2)
+                            p_rev_index = 0 if stroj_p_rev == 2 else 1
+                            new_p_rev = st.selectbox("Perióda Revíznej skúšky (roky):", [2, 3], index=p_rev_index)
                             
                             new_pod_ok = st.date_input("Posledná Podrobná prehliadka OK (5r):", curr_pod_ok)
                         
                         with e_col2:
                             new_urad = st.date_input("Posledná Úradná skúška:", curr_urad)
                             
-                            list_urad = [5, 6, 10]
-                            p_urad_index = list_urad.index(stroj['perioda_uradnej_skusky']) if stroj['perioda_uradnej_skusky'] in list_urad else 0
-                            new_p_urad = st.selectbox("Perióda Úradnej skúšky (roky):", list_urad, index=p_urad_index)
+                            # POZOR: Zoznam zadaný textovo na zabránenie vymazania systémom rozhrania
+                            stroj_p_urad = stroj.get('perioda_uradnej_skusky', 5)
+                            if stroj_p_urad == 5:
+                                p_urad_index = 0
+                            elif stroj_p_urad == 6:
+                                p_urad_index = 1
+                            else:
+                                p_urad_index = 2
+                            new_p_urad = st.selectbox("Perióda Úradnej skúšky (roky):", [5, 6, 10], index=p_urad_index)
                             
                             new_odb_pr = st.date_input("Posledná Odborná prehliadka:", curr_odb_pr)
                             new_odb_sk = st.date_input("Posledná Odborná skúška:", curr_odb_sk)
@@ -380,7 +386,7 @@ with tab_zoznam:
                             "nasledujuca_podrobna_prehliadka_ok": n_pod_ok.isoformat() if n_pod_ok else None,
                             "posledna_uradna_skuska": new_urad.isoformat() if new_urad else None,
                             "perioda_uradnej_skusky": new_p_urad,
-                            "nasledujuca_uradna_skuska": n_urad.isoformat() if n_urad else None,
+                            "nasledujuca_uradna_skuska": n_urad.isoformat() if new_urad else None,
                             "posledna_odborna_prehliadka": new_odb_pr.isoformat() if new_odb_pr else None,
                             "nasledujuca_odborna_prehliadka": n_odb_pr.isoformat() if n_odb_pr else None,
                             "posledna_odborna_skuska": new_odb_sk.isoformat() if new_odb_sk else None,
@@ -389,7 +395,3 @@ with tab_zoznam:
                             "posledna_geometria": new_geom.isoformat() if new_geom else None,
                             "nasledujuca_geometria": n_geom.isoformat() if n_geom else None,
                         }
-                        
-                        try:
-                            supabase.table("stroje").update(upravene_data).eq("id", stroj["id"]).execute()
-                            st.success("Zmeny boli úspešne uložené do cloudu!")

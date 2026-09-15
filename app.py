@@ -213,6 +213,49 @@ with tab_pridat:
 # ==========================================
 with tab_zoznam:
     st.header("📋 Kompletný zoznam a úprava strojov")
+
+        # === 🟢 EXPORT DO EXCELU 🟢 ===
+    if vsetky_stroje:
+        import pandas as pd
+        import io
+
+        # Prevedieme dáta z databázy na prehľadnú tabuľku (DataFrame)
+        df = pd.DataFrame(vsetky_stroje)
+        
+        # Vyberieme a premenujeme len dôležité stĺpce pre Excel, aby bol čistý
+        stlpce_pre_excel = {
+            "nazov": "Názov stroja",
+            "umiestnenie": "Umiestnenie",
+            "nasledujuca_revizia": "Ďalšia Revízia",
+            "nasledujuca_revizna_skuska": "Ďalšia Revízna skúška",
+            "nasledujuca_podrobna_prehliadka_ok": "Ďalšia Podrobná prehliadka OK",
+            "nasledujuca_odborna_prehliadka": "Ďalšia Odborná prehliadka",
+            "nasledujuca_odborna_skuska": "Ďalšia Odborná skúška",
+            "nasledujuca_uradna_skuska": "Ďalšia Úradná skúška",
+            "nasledujuca_geometria": "Ďalšia Geometria dráhy"
+        }
+        
+        # Filtrujeme iba tie stĺpce, ktoré v databáze reálne máme
+        existujuce_stlpce = [st for st in stlpce_pre_excel.keys() if st in df.columns]
+        df_export = df[existujuce_stlpce].rename(columns=stlpce_pre_excel)
+        
+        # Nahradíme chýbajúce dátumy textom, aby to v Exceli nevyzeralo ako chyba
+        df_export = df_export.fillna("nevykonáva sa")
+
+        # Vytvoríme virtuálny súbor v pamäti, aby ho bolo možné stiahnuť
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+            df_export.to_excel(writer, index=False, sheet_name='Revízie Strojov')
+        
+        # Tlačidlo pre priame stiahnutie súboru
+        st.download_button(
+            label="🟢 Stiahnuť celú databázu do Excelu (.xlsx)",
+            data=buffer.getvalue(),
+            file_name=f"revizie_strojov_{date.today().strftime('%d_%m_%Y')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        st.markdown("---")
+    # === --------------------- ===
     
     # 🧠 PRIORITNÁ FUNKCIA (CALLBACK): Vykoná sa ihneď pri kliknutí na uloženie formulára
     def uloz_zmeny_do_cloudu(stroj_id, upraveny_slovnik):

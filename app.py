@@ -275,6 +275,9 @@ with tab_zoznam:
                 cell.font = hlavicka_font
                 cell.fill = hlavicka_fill
                 cell.border = mriezka
+            # 📌 UKOTVENIE PRVÉHO RIADKU (Hlavička zostane pevná pri rolovaní)
+            worksheet.freeze_panes = 'A2'
+
             
             # Automatické prispôsobenie šírky stĺpcov podľa dĺžky textu, aby sa nič neorezávalo
             for col in worksheet.columns:

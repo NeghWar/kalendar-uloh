@@ -82,6 +82,7 @@ tab_prehlad, tab_kalendar, tab_pridat = st.tabs([
     "🔔 Prehľad a Upozornenia", 
     "📅 Mesačný Kalendár", 
     "➕ Pridať / Evidovať Stroj"
+    "📋 Zoznam strojov a úprava"
 ])
 
 # ==========================================
@@ -233,3 +234,45 @@ with tab_kalendar:
                     
     if not nasli_sa_v_mesiaci:
         st.text("Pre tento mesiac nie sú naplánované žiadne revízie.")
+        
+# ==========================================
+# ZÁLOŽKA 4: ZOZNAM STROJOV A MAZANIE
+# ==========================================
+with tab_zoznam:
+    st.header("📋 Kompletný zoznam evidovaných strojov")
+    
+    if not vsetky_stroje:
+        st.info("V databáze nie sú žiadne stroje.")
+    else:
+        # Pre každé zariadenie vykreslíme prehľadný riadok
+        for stroj in vsetky_stroje:
+            with st.container():
+                # Vytvoríme stĺpce: 3 pre text a 1 pre tlačidlo na zmazanie
+                col_text1, col_text2, col_text3, col_akcia = st.columns([2, 2, 3, 1])
+                
+                with col_text1:
+                    st.markdown(f"**Stroj:** {stroj['nazov']}")
+                with col_text2:
+                    st.markdown(f"**Umiestnenie:** {stroj['umiestnenie'] or 'Nezadané'}")
+                with col_text3:
+                    # Rýchly prehľad dvoch hlavných revízií
+                    rev = stroj['nasledujuca_revizia']
+                    skuska = stroj['nasledujuca_revizna_skuska']
+                    pekna_rev = date.fromisoformat(rev).strftime('%d.%m.%Y') if rev else 'Nezadaná'
+                    pekna_skuska = date.fromisoformat(skuska).strftime('%d.%m.%Y') if skuska else 'Nezadaná'
+                    st.markdown(f"<small>Ďalšia Revízia: {pekna_rev}<br>Ďalšia R. Skúška: {pekna_skuska}</small>", unsafe_allow_html=True)
+                
+                with col_akcia:
+                    # Unikátny kľúč pre každé tlačidlo podľa ID stroja
+                    kliknute_zmazat = st.button("❌ Zmazať", key=f"zmaz_{stroj['id']}")
+                    if kliknute_zmazat:
+                        try:
+                            # Príkaz na zmazanie zo Supabase databázy podľa ID
+                            supabase.table("stroje").delete().eq("id", stroj["id"]).execute()
+                            st.success(f"Stroj bol úspešne vymazaný!")
+                            st.rerun()  # Aktualizuje stránku, aby stroj hneď zmizol
+                        except Exception as e:
+                            st.error(f"Chyba pri mazaní: {e}")
+            
+            st.markdown("---")  # Čiara medzi strojmi
+

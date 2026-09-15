@@ -1,11 +1,11 @@
 import streamlit as st
 from datetime import date, timedelta
-import calendar
 from supabase import create_client, Client
 
-# --- PRIPOJENIE NA SUPABASE ---
-SUPABASE_URL = "https://fdfsifvklwsdgeskgadc.supabase.co"
-SUPABASE_KEY = "sb_publishable_rJ815qf4quLjznGgEPT7Tw_UeP3lITQ"
+# --- AUTOMATICKÉ NAČÍTANIE ZO SECRETS ---
+SUPABASE_URL = st.secrets["SUPABASE_URL"]
+SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+MOJE_TAJNE_HESLO = st.secrets["MOJE_TAJNE_HESLO"]
 
 @st.cache_resource
 def get_supabase() -> Client:
@@ -14,15 +14,68 @@ def get_supabase() -> Client:
 supabase = get_supabase()
 
 st.set_page_config(page_title="Revízny Systém Strojov", page_icon="⚙️", layout="wide")
+
+# ==========================================
+# 🔒 BEZPEČNOSTNÝ ZÁMOK
+# ==========================================
+if "overeny" not in st.session_state:
+    st.session_state.overeny = False
+
+if not st.session_state.overeny:
+    st.title("🔒 Chránený revízny systém")
+    st.subheader("Vstup len pre oprávnené osoby")
+    
+    zadane_heslo = st.text_input("Zadajte prístupové heslo:", type="password")
+    tlacidlo_prihlasit = st.button("Prihlásiť sa")
+    
+    if tlacidlo_prihlasit:
+        if zadane_heslo == MOJE_TAJNE_HESLO:
+            st.session_state.overeny = True
+            st.rerun()
+        else:
+            st.error("Nesprávne heslo! Prístup odmietnutý.")
+            
+    st.stop()
+
+# ... ZVYŠOK KÓDU (ZÁLOŽKY, FORMULÁRE) OSTÁVA ÚPLNE ROVNAKÝ ...
+
+
+if "overeny" not in st.session_state:
+    st.session_state.overeny = False
+
+if not st.session_state.overeny:
+    st.title("🔒 Chránený revízny systém")
+    st.subheader("Vstup len pre oprávnené osoby")
+    
+    zadane_heslo = st.text_input("Zadajte prístupové heslo:", type="password")
+    tlacidlo_prihlasit = st.button("Prihlásiť sa")
+    
+    if tlacidlo_prihlasit:
+        if zadane_heslo == MOJE_TAJNE_HESLO:
+            st.session_state.overeny = True
+            st.rerun()
+        else:
+            st.error("Nesprávne heslo! Prístup odmietnutý.")
+            
+    # Zastavíme vykonávanie zvyšku kódu, kým nie je používateľ overený
+    st.stop()
+
+# ==========================================
+# HLAVNÝ PROGRAM (Spustí sa len po správnom hesle)
+# ==========================================
 st.title("⚙️ Profesionálny Systém Revízií a Prehliadok")
 
-# --- POMOCNÁ FUNKCIA NA VÝPOČET TERMÍNU (Roky na dni mínus 1 deň) ---
+# --- POMOCNÁ FUNKCIA NA VÝPOČET TERMÍNU ---
 def vypocitaj_nasledujuci(posledny_datum, roky):
     if posledny_datum is None:
         return None
-    # 1 rok = 365 dní, X rokov = X * 365 dní. Podľa zadania odpočítame 1 deň.
     dni = (roky * 365) - 1
     return posledny_datum + timedelta(days=dni)
+
+# Tlačidlo na odhlásenie v hornom rohu
+if st.sidebar.button("🔒 Odhlásiť sa"):
+    st.session_state.overeny = False
+    st.rerun()
 
 # --- ROZDELENIE STRÁNKY NA ZÁLOŽKY ---
 tab_prehlad, tab_kalendar, tab_pridat = st.tabs([
@@ -72,7 +125,6 @@ with tab_pridat:
         tlacidlo_ulozit = st.form_submit_button("Uložiť stroj a vypočítať revízie")
 
     if tlacidlo_ulozit and nazov:
-        # Výpočty nasledujúcich termínov na základe zadaných pravidiel
         n_revizia = vypocitaj_nasledujuci(p_revizia, 1)
         n_revizna_sk = vypocitaj_nasledujuci(p_revizna_sk, perioda_reviznej)
         n_podrobna_ok = vypocitaj_nasledujuci(p_podrobna_ok, 5)
@@ -104,7 +156,8 @@ with tab_pridat:
         
         try:
             supabase.table("stroje").insert(novy_stroj_data).execute()
-            st.success(f"Stroj '{nazov}' bol úspešne zaevidovaný a revízie boli naplánované!")
+            st.success(f"Stroj '{nazov}' bol úspešne zaevidovaný!")
+            st.rerun()
         except Exception as e:
             st.error(f"Chyba pri ukladaní stroja: {e}")
 
@@ -161,14 +214,13 @@ with tab_kalendar:
     
     c_rok, c_mes = st.columns(2)
     with c_rok:
-        izvoleny_rok = st.selectbox("Rok:", [2026, 2027, 2028, 2029, 2030])
+        izvoleny_rok = st.selectbox("Rok:", [2026, 2027, 2028, 2029, 2030], index=0)
     with c_mes:
         mesiace_sk = ["Január", "Február", "Marec", "Apríl", "Máj", "Jún", "Júl", "August", "September", "Október", "November", "December"]
         izvoleny_mesiac_nazov = st.selectbox("Mesiac:", mesiace_sk, index=date.today().month - 1)
         izvoleny_mesiac_num = mesiace_sk.index(izvoleny_mesiac_nazov) + 1
 
     st.subheader(f"Plán revízií na: {izvoleny_mesiac_nazov} {izvoleny_rok}")
-    
     nasli_sa_v_mesiaci = False
     
     for stroj in vsetky_stroje:

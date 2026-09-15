@@ -78,12 +78,13 @@ if st.sidebar.button("🔒 Odhlásiť sa"):
     st.rerun()
 
 # --- ROZDELENIE STRÁNKY NA ZÁLOŽKY ---
-tab_prehlad, tab_kalendar, tab_pridat = st.tabs([
+tab_prehlad, tab_kalendar, tab_pridat, tab_zoznam = st.tabs([
     "🔔 Prehľad a Upozornenia", 
     "📅 Mesačný Kalendár", 
     "➕ Pridať / Evidovať Stroj",
     "📋 Zoznam strojov a úprava"
 ])
+
 
 # ==========================================
 # ZÁLOŽKA 3: PRIDANIE / EVIDENCIA STROJA

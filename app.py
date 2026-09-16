@@ -282,22 +282,24 @@ with tab_prehlad:
     st.subheader(f"⏭️ Čo vás čaká v budúcom mesiaci: {mesiace_nazvy[nasl_mesiac - 1]} {nasl_rok}")
     nasli_sa_buduci_mesiac = False
     
+    # Prechádzame stroje a hľadáme termíny na nasledujúci mesiac
     for stroj in vsetky_stroje:
         for stlpec, nazov_kontroly in definicia_kontrol.items():
             iso_termin = stroj.get(stlpec)
             if iso_termin:
                 termin = date.fromisoformat(iso_termin)
                 
-                # Sledujeme len termíny, ktoré spadajú do budúceho mesiaca a roku
+                # Zaujímajú nás termíny pre budúci mesiac a rok
                 if termin.year == nasl_rok and termin.month == nasl_mesiac:
                     nasli_sa_buduci_mesiac = True
                     pekny_datum = termin.strftime('%d.%m.%Y')
-                    st.warning(f"📅 **{pekny_datum}** - **{stroj['nazov']}** ({stroj['umiestnenie']}) -> Bude potrebné vykonať: *{nazov_kontroly}*")
+                    
+                    # Zobrazíme ako prehľadné žlté/oranžové karty prislúchajúce budúcemu mesiacu
+                    st.warning(f"📅 **{pekny_datum}** — **{stroj['nazov']}** ({stroj['umiestnenie'] or 'Nezadané'}) \n\n👉 *Plánovaný výkon:* **{nazov_kontroly}**")
                     
     if not nasli_sa_buduci_mesiac:
-        st.caption("Na nasledujúci mesiac zatiaľ nie sú naplánované žiadne revízie.")
-
-
+        st.caption("Na nasledujúci mesiac zatiaľ nie sú naplánované žiadne revízie. Všetko je v poriadku! ✨")
+    
 # ==========================================
 # ZÁLOŽKA 2: MESAČNÝ KALENDÁR
 # ==========================================

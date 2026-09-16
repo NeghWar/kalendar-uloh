@@ -715,7 +715,6 @@ with tab_zoznam:
                             st.markdown("**Revízna skúška**")
                             has_rev_sk = st.checkbox("Evidovať dátum rev. skúšky", value=bool(stroj.get('posledna_revizna_skuska')), key=f"has_revsk_{stroj_id}")
                             new_rev_sk = st.date_input("Posledná Revízna skúška:", curr_rev_sk, key=f"inp_revsk_{stroj_id}") if has_rev_sk else None
-                            
                             list_p_rev = [3, 2, 1]
                             stroj_p_rev = stroj.get('perioda_reviznej_skusky', 2)
                             p_rev_idx = list_p_rev.index(stroj_p_rev) if stroj_p_rev in list_p_rev else 1
@@ -729,7 +728,6 @@ with tab_zoznam:
                             st.markdown("**Úradná skúška**")
                             has_urad = st.checkbox("Evidovať dátum úradnej sk.", value=bool(stroj.get('posledna_uradna_skuska')), key=f"has_urad_{stroj_id}")
                             new_urad = st.date_input("Posledná Úradná skúška:", curr_urad, key=f"inp_urad_{stroj_id}") if has_urad else None
-                            
                             list_p_urad = [10, 9, 6, 5, 4, 3]
                             stroj_p_urad = stroj.get('perioda_uradnej_skusky', 5)
                             p_urad_idx = list_p_urad.index(stroj_p_urad) if stroj_p_urad in list_p_urad else 3
@@ -738,7 +736,6 @@ with tab_zoznam:
                             st.markdown("**Odborná prehliadka**")
                             has_odb_pr = st.checkbox("Evidovať dátum odbornej pr.", value=bool(stroj.get('posledna_odborna_prehliadka')), key=f"has_odbpr_{stroj_id}")
                             new_odb_pr = st.date_input("Posledná Odborná prehliadka:", curr_odb_pr, key=f"inp_odbpr_{stroj_id}") if has_odb_pr else None
-                            
                             list_p_odbpr = [3.0, 2.0, 1.0, 0.5, 0.25]
                             stroj_p_odbpr = stroj.get('interval_odborna_pr', 1.0)
                             p_odbpr_idx = list_p_odbpr.index(stroj_p_odbpr) if stroj_p_odbpr in list_p_odbpr else 2
@@ -753,7 +750,6 @@ with tab_zoznam:
                             st.markdown("**Odborná skúška**")
                             has_odb_sk = st.checkbox("Evidovať dátum odbornej sk.", value=bool(stroj.get('posledna_odborna_skuska')), key=f"has_odbsk_{stroj_id}")
                             new_odb_sk = st.date_input("Posledná Odborná skúška:", curr_odb_sk, key=f"inp_odbsk_{stroj_id}") if has_odb_sk else None
-                            
                             list_p_odbsk = [6, 4, 3, 2, 1]
                             stroj_p_odbsk = stroj.get('perioda_odbornej_skusky', 1)
                             p_odbsk_idx = list_p_odbsk.index(stroj_p_odbsk) if stroj_p_odbsk in list_p_odbsk else 4
@@ -766,6 +762,7 @@ with tab_zoznam:
                             has_geom = st.checkbox("Evidovať dátum pre Geometriu", value=bool(stroj.get('posledna_geometria')), key=f"has_geom_{stroj_id}")
                             if not has_geom:
                                 new_geom = None
+                    
                         kliknute_ulozit = st.form_submit_button("💾 Uložiť zmeny stroja")
                         
                         if kliknute_ulozit:

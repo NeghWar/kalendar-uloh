@@ -600,6 +600,7 @@ with tab_pridat:
                 st.error(f"Chyba pri ukladaní stroja: {e}")
 
     # 3. ZOBRAZENIE BLOKU PRE POTVRDENIE (Zobrazí sa bezpečne na ploche mimo formulára)
+    # 3. ZOBRAZENIE BLOKU PRE POTVRDENIE (Zobrazí sa bezpečne na ploche mimo formulára)
     if st.session_state.get("stroj_na_prepis_id"):
         dup_id = st.session_state["stroj_na_prepis_id"]
         dup_nazov = st.session_state["stroj_na_prepis_nazov"]
@@ -611,24 +612,32 @@ with tab_pridat:
         
         c_dup1, c_dup2 = st.columns(2)
         with c_dup1:
-            # Kľúč tlačidla obsahuje ID stroja, takže bude vždy 100% unikátny
             if st.button("🔄 Áno, prepísať starý záznam", key=f"btn_overwrite_confirm_{dup_id}", use_container_width=True):
                 try:
                     supabase.table("stroje").update(dup_data).eq("id", dup_id).execute()
                     st.toast(f"Stroj '{dup_nazov}' bol úspešne prepísaný! 💾")
+                    
+                    # ÚPLNÝ RESET STAVOV, ABY SA TO NEPÝTALO 2-KRÁT
                     st.session_state["stroj_na_prepis_id"] = None
                     st.session_state["stroj_na_prepis_data"] = None
+                    st.session_state["stroj_na_prepis_nazov"] = None
+                    if "novy_stroj_form" in st.session_state:
+                        del st.session_state["novy_stroj_form"]
                     st.rerun()
                 except Exception as err:
                     st.error(f"Nepodarilo sa prepísať stroj: {err}")
                     
         with c_dup2:
             if st.button("❌ Nie, ponechať pôvodný", key=f"btn_overwrite_cancel_{dup_id}", use_container_width=True):
+                # ÚPLNÝ RESET STAVOV PRI ZRUŠENÍ
                 st.session_state["stroj_na_prepis_id"] = None
                 st.session_state["stroj_na_prepis_data"] = None
+                st.session_state["stroj_na_prepis_nazov"] = None
+                if "novy_stroj_form" in st.session_state:
+                    del st.session_state["novy_stroj_form"]
                 st.info("Pôvodný stroj zostal v databáze nezmenený.")
                 st.rerun()
-  
+   
   
 # ==========================================
 # ZÁLOŽKA 4: ZOZNAM STROJOV, ÚPRAVA A MAZANIE

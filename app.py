@@ -404,209 +404,27 @@ with tab_kalendar:
     if not nasli_sa_záznamy:
         st.caption("Pre toto obdobie nie sú zaznamenané žiadne splnené ani plánované revízie.")
 
-# ==========================================
-# ZÁLOŽKA 3: PRIDANIE / EVIDENCIA STROJA
-# ==========================================
+
 # ==========================================
 # ZÁLOŽKA 3: PRIDANIE / EVIDENCIA STROJA
 # ==========================================
 with tab_pridat:
     st.header("Evidencia nového stroja do systému")
-    
-    with st.form(key="novy_stroj_form", clear_on_submit=False):
-        col1, col2 = st.columns(2)
-        with col1:
-            nazov = st.text_input("Názov stroja / zariadenia:", placeholder="Napr. Mostový žeriav 5t")
-        with col2:
-            umiestnenie = st.text_input("Umiestnenie (Hala / Stanovište):", placeholder="Napr. Hala A - expedícia")
-            
-        st.markdown("---")
-        st.subheader("Zadajte dátumy posledných vykonaných kontrol a ich periódy:")
-        
-        c1, c2 = st.columns(2)
-        with c1:
-            p_revizia = st.date_input("Posledná Revízia (opakuje sa ročne):", None)
-            
-            st.markdown("**Revízna skúška**")
-            p_revizna_sk = st.date_input("Posledná Revízna skúška:", None, key="add_d_revsk")
-            perioda_reviznej = st.selectbox("Perióda Revíznej skúšky:", [3, 2, 1], format_func=lambda x: f"{x} rok(y)", key="add_p_revsk")
-            
-            st.markdown("**Podrobná prehliadka OK**")
-            p_podrobna_ok = st.date_input("Posledná Podrobná prehliadka OK (opakuje sa 5-ročne):", None)
-        
-        with c2:
-            st.markdown("**Úradná skúška**")
-            p_uradna = st.date_input("Posledná Úradná skúška:", None, key="add_d_urad")
-            perioda_uradnej = st.selectbox("Perióda Úradnej skúšky:", [10, 9, 6, 5, 4, 3], format_func=lambda x: f"{x} rokov", key="add_p_urad")
-            st.info("💡 **Pomôcka pre lehoty úradných skúšok:**\n\n• **UTZ:** platia termíny **9, 6, 5, 4, 3** rokov podľa typu zariadenia.\n• **VTZ:** platia termíny **10 alebo 6** rokov.")
-            
-            st.markdown("**Odborná prehliadka**")
-            p_odborna_pr = st.date_input("Posledná Odborná prehliadka:", None, key="add_d_odbpr")
-            interval_odborna_pr = st.selectbox(
-                "Interval Odbornej prehliadky:", 
-                [3.0, 2.0, 1.0, 0.5, 0.25], 
-                format_func=lambda x: "3 roky" if x == 3.0 else ("2 roky" if x == 2.0 else ("1 rok (ročne)" if x == 1.0 else ("6 mesiacov (polročne)" if x == 0.5 else "3 mesiace (štvrťročne)"))),
-                key="add_p_odbpr"
-            )
-            
-            st.markdown("**Odborná skúška**")
-            p_odborna_sk = st.date_input("Posledná Odborná skúška:", None, key="add_d_odbsk")
-            perioda_odbornej_sk = st.selectbox("Perióda Odbornej skúšky:", [6, 4, 3, 2, 1], format_func=lambda x: f"{x} rok(ov)", key="add_p_odbsk")
-            
-        st.markdown("---")
-        ma_geometriu = st.checkbox("Vykonáva sa na tomto stroji Geometrické zameranie žeriavovej dráhy? (10 rokov)")
-        p_geometria = None
-        if ma_geometriu:
-            p_geometria = st.date_input("Posledné Geometrické zameranie dráhy:", None)
-            
-        tlacidlo_ulozit = st.form_submit_button("Uložiť stroj a vypočítať revízie")
-    if tlacidlo_ulozit and nazov:
-        # 1. PREPOČET TERMÍNOV PODĽA VYBRANÝCH PERIODÍT
-        n_rev = vypocitaj_nasledujuci(p_revizia, 1)
-        n_rev_sk = vypocitaj_nasledujuci(p_revizna_sk, perioda_reviznej)
-        n_pod_ok = vypocitaj_nasledujuci(p_podrobna_ok, 5)
-        n_urad = vypocitaj_nasledujuci(p_uradna, perioda_uradnej)
-        n_odb_pr = vypocitaj_nasledujuci(p_odborna_pr, interval_odborna_pr)
-        n_odb_sk = vypocitaj_nasledujuci(p_odborna_sk, perioda_odbornej_sk)
-        n_geometria = vypocitaj_nasledujuci(p_geometria, 10) if ma_geometriu else None
 
-        pripravene_novy_stroj = {
-            "nazov": nazov, "umiestnenie": umiestnenie,
-            "posledna_revizia": p_revizia.isoformat() if p_revizia else None,
-            "nasledujuca_revizia": n_rev.isoformat() if n_rev else None,
-            "posledna_revizna_skuska": p_revizna_sk.isoformat() if p_revizna_sk else None,
-            "perioda_reviznej_skusky": int(perioda_reviznej),
-            "nasledujuca_revizna_skuska": n_rev_sk.isoformat() if n_rev_sk else None,
-            "posledna_podrobna_prehliadka_ok": p_podrobna_ok.isoformat() if p_podrobna_ok else None,
-            "nasledujuca_podrobna_prehliadka_ok": n_pod_ok.isoformat() if n_pod_ok else None,
-            "posledna_uradna_skuska": p_uradna.isoformat() if p_uradna else None,
-            "perioda_uradnej_skusky": int(perioda_uradnej),
-            "nasledujuca_uradna_skuska": n_urad.isoformat() if n_urad else None,
-            "posledna_odborna_prehliadka": p_odborna_pr.isoformat() if p_odborna_pr else None,
-            "nasledujuca_odborna_prehliadka": n_odb_pr.isoformat() if n_odb_pr else None,
-            "posledna_odborna_skuska": p_odborna_sk.isoformat() if p_odborna_sk else None,
-            "nasledujuca_odborna_skuska": n_odb_sk.isoformat() if n_odb_sk else None,
-            "vykonava_sa_geometria": ma_geometriu,
-            "posledna_geometria": p_geometria.isoformat() if p_geometria else None,
-            "nasledujuca_geometria": n_geometria.isoformat() if n_geometria else None,
-        }
+    # Inicializácia stavov pre kontrolu prepisu
+    if "stroj_na_prepis_id" not in st.session_state:
+        st.session_state["stroj_na_prepis_id"] = None
+    if "stroj_na_prepis_data" not in st.session_state:
+        st.session_state["stroj_na_prepis_data"] = None
+    if "stroj_na_prepis_nazov" not in st.session_state:
+        st.session_state["stroj_na_prepis_nazov"] = None
 
-        # 2. OVERENIE DUPLICITY V DATABÁZE V RÁMCI SESSION STATE
-        # Zistíme, či už existuje stroj s presne rovnakým názvom
-        stroj_existuje = None
-        for s in vsetky_stroje:
-            if s["nazov"].strip().lower() == nazov.strip().lower():
-                stroj_existuje = s
-                break
-
-        if stroj_existuje:
-            # Ak stroj nájdeme, neukladáme ihneď, ale uložíme si dáta do stavu na potvrdenie
-            st.session_state["duplicny_stroj_id"] = stroj_existuje["id"]
-            st.session_state["duplicne_data_na_prepis"] = pripravene_novy_stroj
-            st.session_state["pocas_duplicity_nazov"] = nazov
-        else:
-            # Ak je stroj nový, bezpečne ho zapíšeme
-            try:
-                supabase.table("stroje").insert(pripravene_novy_stroj).execute()
-                st.success(f"Stroj '{nazov}' bol úspešne zaevidovaný!")
-                st.rerun()
-            except Exception as e:
-                st.error(f"Chyba pri ukladaní stroja: {e}")
-
-    # 3. ZOBRAZENIE DIALÓGU PRE PREPÍSANIE V PRÍPADE DUPLICITY
-    if "duplicny_stroj_id" in st.session_state and st.session_state["duplicny_stroj_id"]:
-        dup_nazov = st.session_state["pocas_duplicity_nazov"]
-        st.warning(f"⚠️ **Upozornenie:** Zariadenie s názvom **'{dup_nazov}'** sa už v systéme nachádza.")
-        st.markdown("Chcete pôvodný stroj nahradiť týmito novými údajmi a nanovo prepočítať termíny?")
-        
-        c_dup1, c_dup2 = st.columns(2)
-        with c_dup1:
-            if st.button("🔄 Áno, prepísať starý záznam", key="btn_confirm_overwrite", use_container_width=True):
-                try:
-                    s_id = st.session_state["duplicny_stroj_id"]
-                    s_data = st.session_state["duplicne_data_na_prepis"]
-                    
-                    supabase.table("stroje").update(s_data).eq("id", s_id).execute()
-                    st.success(f"Stroj '{dup_nazov}' bol úspešne prepísaný novými dátami!")
-                    
-                    # Vyčistíme dočasný stav
-                    st.session_state["duplicny_stroj_id"] = None
-                    st.session_state["duplicne_data_na_prepis"] = None
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Nepodarilo sa prepísať stroj: {e}")
-                    
-        with c_dup2:
-            if st.button("❌ Nie, ponechať pôvodný", key="btn_cancel_overwrite", use_container_width=True):
-                st.session_state["duplicny_stroj_id"] = None
-                st.session_state["duplicne_data_na_prepis"] = None
-                st.info("Akcia zrušená. Pôvodný stroj zostal nezmenený.")
-                st.rerun()
-
-    # --- 🛡️ BEZPEČNÁ FUNKCIA PRE POTVRDENIE PREPISU ---
-    # --- SPRACOVANIE FORMULÁRA PO STLAČENÍ ULOŽIŤ ---
-    if tlacidlo_ulozit and nazov:
-        # 1. Prepočet termínov podľa vybraných periodít
-        n_rev = vypocitaj_nasledujuci(p_revizia, 1)
-        n_rev_sk = vypocitaj_nasledujuci(p_revizna_sk, perioda_reviznej)
-        n_pod_ok = vypocitaj_nasledujuci(p_podrobna_ok, 5)
-        n_urad = vypocitaj_nasledujuci(p_uradna, perioda_uradnej)
-        n_odb_pr = vypocitaj_nasledujuci(p_odborna_pr, interval_odborna_pr)
-        n_odb_sk = vypocitaj_nasledujuci(p_odborna_sk, perioda_odbornej_sk)
-        n_geometria = vypocitaj_nasledujuci(p_geometria, 10) if ma_geometriu else None
-
-        pripravene_novy_stroj = {
-            "nazov": nazov.strip(), 
-            "umiestnenie": umiestnenie.strip() if umiestnenie else None,
-            "posledna_revizia": p_revizia.isoformat() if p_revizia else None,
-            "nasledujuca_revizia": n_rev.isoformat() if n_rev else None,
-            "posledna_revizna_skuska": p_revizna_sk.isoformat() if p_revizna_sk else None,
-            "perioda_reviznej_skusky": int(perioda_reviznej),
-            "nasledujuca_revizna_skuska": n_rev_sk.isoformat() if n_rev_sk else None,
-            "posledna_podrobna_prehliadka_ok": p_podrobna_ok.isoformat() if p_podrobna_ok else None,
-            "nasledujuca_podrobna_prehliadka_ok": n_pod_ok.isoformat() if n_pod_ok else None,
-            "posledna_uradna_skuska": p_uradna.isoformat() if p_uradna else None,
-            "perioda_uradnej_skusky": int(perioda_uradnej),
-            "nasledujuca_uradna_skuska": n_urad.isoformat() if n_urad else None,
-            "posledna_odborna_prehliadka": p_odborna_pr.isoformat() if p_odborna_pr else None,
-            "nasledujuca_odborna_prehliadka": n_odb_pr.isoformat() if n_odb_pr else None,
-            "posledna_odborna_skuska": p_odborna_sk.isoformat() if p_odborna_sk else None,
-            "nasledujuca_odborna_skuska": n_odb_sk.isoformat() if n_odb_sk else None,
-            "vykonava_sa_geometria": ma_geometriu,
-            "posledna_geometria": p_geometria.isoformat() if p_geometria else None,
-            "nasledujuca_geometria": n_geometria.isoformat() if n_geometria else None,
-        }
-
-        # 2. Kontrola duplicity podľa názvu
-        stroj_existuje = None
-        for s in vsetky_stroje:
-            if s["nazov"].strip().lower() == nazov.strip().lower():
-                stroj_existuje = s
-                break
-
-        if stroj_existuje:
-            # Ak existuje duplicita, iba si zapíšeme dáta do session_state a nikam nezapisujeme
-            st.session_state["stroj_na_prepis_id"] = stroj_existuje["id"]
-            st.session_state["stroj_na_prepis_nazov"] = stroj_existuje["nazov"]
-            st.session_state["stroj_na_prepis_data"] = pripravene_novy_stroj
-        else:
-            # Ak je úplne nový, rovno ho vložíme
-            try:
-                supabase.table("stroje").insert(pripravene_novy_stroj).execute()
-                st.success(f"✅ Nový stroj '{nazov}' bol úspešne zaevidovaný!")
-                st.session_state["stroj_na_prepis_id"] = None # Vyčistíme staré stavy
-                st.rerun()
-            except Exception as e:
-                st.error(f"Chyba pri ukladaní stroja: {e}")
-
-    # 3. ZOBRAZENIE BLOKU PRE POTVRDENIE (Zobrazí sa bezpečne na ploche mimo formulára)
-    # 3. ZOBRAZENIE BLOKU PRE POTVRDENIE (Zobrazí sa bezpečne na ploche mimo formulára)
-    if st.session_state.get("stroj_na_prepis_id"):
+    # --- 🛡️ BLOK PRE POTVRDENIE (Ak sa zistila duplicita, zobrazí sa IBA toto) ---
+    if st.session_state["stroj_na_prepis_id"] is not None:
         dup_id = st.session_state["stroj_na_prepis_id"]
         dup_nazov = st.session_state["stroj_na_prepis_nazov"]
         dup_data = st.session_state["stroj_na_prepis_data"]
         
-        st.markdown("---")
         st.warning(f"⚠️ **Upozornenie:** Zariadenie s názvom **'{dup_nazov}'** sa už v systéme nachádza.")
         st.write("Chcete pôvodný stroj nahradiť týmito novými údajmi a nanovo prepočítať termíny?")
         
@@ -617,27 +435,125 @@ with tab_pridat:
                     supabase.table("stroje").update(dup_data).eq("id", dup_id).execute()
                     st.toast(f"Stroj '{dup_nazov}' bol úspešne prepísaný! 💾")
                     
-                    # ÚPLNÝ RESET STAVOV, ABY SA TO NEPÝTALO 2-KRÁT
+                    # KOMPLETNÝ RESET A NÁVRAT K FORMULÁRU
                     st.session_state["stroj_na_prepis_id"] = None
                     st.session_state["stroj_na_prepis_data"] = None
                     st.session_state["stroj_na_prepis_nazov"] = None
-                    if "novy_stroj_form" in st.session_state:
-                        del st.session_state["novy_stroj_form"]
                     st.rerun()
                 except Exception as err:
                     st.error(f"Nepodarilo sa prepísať stroj: {err}")
                     
         with c_dup2:
             if st.button("❌ Nie, ponechať pôvodný", key=f"btn_overwrite_cancel_{dup_id}", use_container_width=True):
-                # ÚPLNÝ RESET STAVOV PRI ZRUŠENÍ
+                # RESET BEZ ZÁPISU
                 st.session_state["stroj_na_prepis_id"] = None
                 st.session_state["stroj_na_prepis_data"] = None
                 st.session_state["stroj_na_prepis_nazov"] = None
-                if "novy_stroj_form" in st.session_state:
-                    del st.session_state["novy_stroj_form"]
                 st.info("Pôvodný stroj zostal v databáze nezmenený.")
                 st.rerun()
-   
+
+    else:
+        # --- 📋 ŠTANDARDNÝ FORMULÁR PRE EVIDENCIU (Zobrazí sa len, ak neriešime duplicitu) ---
+        with st.form(key="novy_stroj_form", clear_on_submit=True):
+            col1, col2 = st.columns(2)
+            with col1:
+                nazov = st.text_input("Názov stroja / zariadenia:", placeholder="Napr. Mostový žeriav 5t")
+            with col2:
+                umiestnenie = st.text_input("Umiestnenie (Hala / Stanovište):", placeholder="Napr. Hala A - expedícia")
+                
+            st.markdown("---")
+            st.subheader("Zadajte dátumy posledných vykonaných kontrol a ich periódy:")
+            
+            c1, c2 = st.columns(2)
+            with c1:
+                p_revizia = st.date_input("Posledná Revízia (opakuje sa ročne):", None)
+                
+                st.markdown("**Revízna skúška**")
+                p_revizna_sk = st.date_input("Posledná Revízna skúška:", None, key="add_d_revsk")
+                perioda_reviznej = st.selectbox("Perióda Revíznej skúšky:", [3, 2, 1], format_func=lambda x: f"{x} rok(y)", key="add_p_revsk")
+                
+                st.markdown("**Podrobná prehliadka OK**")
+                p_podrobna_ok = st.date_input("Posledná Podrobná prehliadka OK (opakuje sa 5-ročne):", None)
+            
+            with c2:
+                st.markdown("**Úradná skúška**")
+                p_uradna = st.date_input("Posledná Úradná skúška:", None, key="add_d_urad")
+                napoveda_vtz_utz = "💡 Pomôcka pre lehoty úradných skúšok:\n\n• UTZ: platia termíny 9, 6, 5, 4, 3 rokov podľa typu zariadenia.\n• VTZ: platia termíny 10 alebo 6 rokov."
+                perioda_uradnej = st.selectbox("Perióda Úradnej skúšky:", [10, 9, 6, 5, 4, 3], format_func=lambda x: f"{x} rokov", key="add_p_urad", help=napoveda_vtz_utz)
+                
+                st.markdown("**Odborná prehliadka**")
+                p_odborna_pr = st.date_input("Posledná Odborná prehliadka:", None, key="add_d_odbpr")
+                interval_odborna_pr = st.selectbox(
+                    "Interval Odbornej prehliadky:", 
+                    [3.0, 2.0, 1.0, 0.5, 0.25], 
+                    format_func=lambda x: "3 roky" if x == 3.0 else ("2 roky" if x == 2.0 else ("1 rok (ročne)" if x == 1.0 else ("6 mesiacov (polročne)" if x == 0.5 else "3 mesiace (štvrťročne)"))),
+                    key="add_p_odbpr"
+                )
+                
+                st.markdown("**Odborná skúška**")
+                p_odborna_sk = st.date_input("Posledná Odborná skúška:", None, key="add_d_odbsk")
+                perioda_odbornej_sk = st.selectbox("Perióda Odbornej skúšky:", [6, 4, 3, 2, 1], format_func=lambda x: f"{x} rok(ov)", key="add_p_odbsk")
+                
+            st.markdown("---")
+            ma_geometriu = st.checkbox("Vykonáva sa na tomto stroji Geometrické zameranie žeriavovej dráhy? (10 rokov)")
+            p_geometria = None
+            if ma_geometriu:
+                p_geometria = st.date_input("Posledné Geometrické zameranie dráhy:", None)
+                
+            tlacidlo_ulozit = st.form_submit_button("Uložiť stroj a vypočítať revízie")
+
+        # --- SPRACOVANIE FORMULÁRA PO STLAČENÍ ULOŽIŤ ---
+        if tlacidlo_ulozit and nazov:
+            n_rev = vypocitaj_nasledujuci(p_revizia, 1)
+            n_rev_sk = vypocitaj_nasledujuci(p_revizna_sk, perioda_reviznej)
+            n_pod_ok = vypocitaj_nasledujuci(p_podrobna_ok, 5)
+            n_urad = vypocitaj_nasledujuci(p_uradna, perioda_uradnej)
+            n_odb_pr = vypocitaj_nasledujuci(p_odborna_pr, interval_odborna_pr)
+            n_odb_sk = vypocitaj_nasledujuci(p_odborna_sk, perioda_odbornej_sk)
+            n_geometria = vypocitaj_nasledujuci(p_geometria, 10) if ma_geometriu else None
+
+            pripravene_novy_stroj = {
+                "nazov": nazov.strip(), 
+                "umiestnenie": umiestnenie.strip() if umiestnenie else None,
+                "posledna_revizia": p_revizia.isoformat() if p_revizia else None,
+                "nasledujuca_revizia": n_rev.isoformat() if n_rev else None,
+                "posledna_revizna_skuska": p_revizna_sk.isoformat() if p_revizna_sk else None,
+                "perioda_reviznej_skusky": int(perioda_reviznej),
+                "nasledujuca_revizna_skuska": n_rev_sk.isoformat() if n_rev_sk else None,
+                "posledna_podrobna_prehliadka_ok": p_podrobna_ok.isoformat() if p_podrobna_ok else None,
+                "nasledujuca_podrobna_prehliadka_ok": n_pod_ok.isoformat() if n_pod_ok else None,
+                "posledna_uradna_skuska": p_uradna.isoformat() if p_uradna else None,
+                "perioda_uradnej_skusky": int(perioda_uradnej),
+                "nasledujuca_uradna_skuska": n_urad.isoformat() if n_urad else None,
+                "posledna_odborna_prehliadka": p_odborna_pr.isoformat() if p_odborna_pr else None,
+                "nasledujuca_odborna_prehliadka": n_odb_pr.isoformat() if n_odb_pr else None,
+                "posledna_odborna_skuska": p_odborna_sk.isoformat() if p_odborna_sk else None,
+                "nasledujuca_odborna_skuska": n_odb_sk.isoformat() if n_odb_sk else None,
+                "vykonava_sa_geometria": ma_geometriu,
+                "posledna_geometria": p_geometria.isoformat() if p_geometria else None,
+                "nasledujuca_geometria": n_geometria.isoformat() if n_geometria else None,
+            }
+
+            stroj_existuje = None
+            for s in vsetky_stroje:
+                if s["nazov"].strip().lower() == nazov.strip().lower():
+                    stroj_existuje = s
+                    break
+
+            if stroj_existuje:
+                # Nastavíme session state a okamžite reštartujeme stránku, čím skryjeme formulár
+                st.session_state["stroj_na_prepis_id"] = stroj_existuje["id"]
+                st.session_state["stroj_na_prepis_nazov"] = stroj_existuje["nazov"]
+                st.session_state["stroj_na_prepis_data"] = pripravene_novy_stroj
+                st.rerun()
+            else:
+                try:
+                    supabase.table("stroje").insert(pripravene_novy_stroj).execute()
+                    st.success(f"✅ Nový stroj '{nazov}' bol úspešne zaevidovaný!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Chyba pri ukladaní stroja: {e}")
+
   
 # ==========================================
 # ZÁLOŽKA 4: ZOZNAM STROJOV, ÚPRAVA A MAZANIE

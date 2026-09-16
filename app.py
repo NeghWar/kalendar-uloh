@@ -544,17 +544,18 @@ with tab_pridat:
                 st.rerun()
 
     if tlacidlo_ulozit and nazov:
+        # 1. PREPOČET TERMÍNOV PODĽA VYBRANÝCH PERIODÍT
         n_rev = vypocitaj_nasledujuci(p_revizia, 1)
         n_rev_sk = vypocitaj_nasledujuci(p_revizna_sk, perioda_reviznej)
         n_pod_ok = vypocitaj_nasledujuci(p_podrobna_ok, 5)
         n_urad = vypocitaj_nasledujuci(p_uradna, perioda_uradnej)
         n_odb_pr = vypocitaj_nasledujuci(p_odborna_pr, interval_odborna_pr)
-        n_odb_sk = vypocitaj_nasledujuci(p_odborna_sk, 1)
+        n_odb_sk = vypocitaj_nasledujuci(p_odborna_sk, perioda_odbornej_sk)
         n_geometria = vypocitaj_nasledujuci(p_geometria, 10) if ma_geometriu else None
 
-        novy_stroj_data = {
-            "nazov": nazov, 
-            "umiestnenie": umiestnenie,
+        pripravene_novy_stroj = {
+            "nazov": nazov.strip(), 
+            "umiestnenie": umiestnenie.strip() if umiestnenie else None,
             "posledna_revizia": p_revizia.isoformat() if p_revizia else None,
             "nasledujuca_revizia": n_rev.isoformat() if n_rev else None,
             "posledna_revizna_skuska": p_revizna_sk.isoformat() if p_revizna_sk else None,
@@ -573,13 +574,31 @@ with tab_pridat:
             "posledna_geometria": p_geometria.isoformat() if p_geometria else None,
             "nasledujuca_geometria": n_geometria.isoformat() if n_geometria else None,
         }
-        
-        try:
-            supabase.table("stroje").insert(novy_stroj_data).execute()
-            st.success(f"Stroj '{nazov}' bol úspešne zaevidovaný!")
-            st.rerun()
-        except Exception as e:
-            st.error(f"Chyba pri ukladaní stroja: {e}")
+
+        # 2. KONTROLA DUPLICITY PRIAMO CEZ NÁZOV V DATABÁZE
+        stroj_existuje = None
+        for s in vsetky_stroje:
+            if s["nazov"].strip().lower() == nazov.strip().lower():
+                stroj_existuje = s
+                break
+
+        if stroj_existuje:
+            # Ak stroj existuje, automaticky ho AKTUALIZUJEME (prepíšeme starý záznam)
+            try:
+                supabase.table("stroje").update(pripravene_novy_stroj).eq("id", stroj_existuje["id"]).execute()
+                st.success(f"🔄 Stroj '{nazov}' už v databáze existoval. Pôvodný záznam bol úspešne PREPÍSANÝ novými údajmi!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Chyba pri aktualizácii stroja: {e}")
+        else:
+            # Ak je stroj úplne nový, BEZPEČNE HO VLOŽÍME
+            try:
+                supabase.table("stroje").insert(pripravene_novy_stroj).execute()
+                st.success(f"✅ Nový stroj '{nazov}' bol úspešne zaevidovaný!")
+                st.rerun()
+            except Exception as e:
+                st.error(f"Chyba pri ukladaní stroja: {e}")
+    
 
 # ==========================================
 # ZÁLOŽKA 4: ZOZNAM STROJOV, ÚPRAVA A MAZANIE

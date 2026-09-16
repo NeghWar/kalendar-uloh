@@ -693,13 +693,14 @@ with tab_zoznam:
                 if st.session_state[f"editovanie_{stroj_id}"]:
                     st.info(f"🛠️ Režim úpravy pre stroj: **{stroj['nazov']}**")
                     
-                    curr_rev = date.fromisoformat(stroj['posledna_revizia']) if stroj.get('posledna_revizia') else date.today()
-                    curr_rev_sk = date.fromisoformat(stroj['posledna_revizna_skuska']) if stroj.get('posledna_revizna_skuska') else date.today()
-                    curr_pod_ok = date.fromisoformat(stroj['posledna_podrobna_prehliadka_ok']) if stroj.get('posledna_podrobna_prehliadka_ok') else date.today()
-                    curr_odb_pr = date.fromisoformat(stroj['posledna_odborna_prehliadka']) if stroj.get('posledna_odborna_prehliadka') else date.today()
-                    curr_odb_sk = date.fromisoformat(stroj['posledna_odborna_skuska']) if stroj.get('posledna_odborna_skuska') else date.today()
-                    curr_urad = date.fromisoformat(stroj['posledna_uradna_skuska']) if stroj.get('posledna_uradna_skuska') else date.today()
-                    curr_geom = date.fromisoformat(stroj['posledna_geometria']) if stroj.get('posledna_geometria') else date.today()
+                    # Načítame IBA to, čo reálne je v databáze (žiadne umelé date.today())
+                    db_rev = date.fromisoformat(stroj['posledna_revizia']) if stroj.get('posledna_revizia') else None
+                    db_rev_sk = date.fromisoformat(stroj['posledna_revizna_skuska']) if stroj.get('posledna_revizna_skuska') else None
+                    db_pod_ok = date.fromisoformat(stroj['posledna_podrobna_prehliadka_ok']) if stroj.get('posledna_podrobna_prehliadka_ok') else None
+                    db_urad = date.fromisoformat(stroj['posledna_uradna_skuska']) if stroj.get('posledna_uradna_skuska') else None
+                    db_odb_pr = date.fromisoformat(stroj['posledna_odborna_prehliadka']) if stroj.get('posledna_odborna_prehliadka') else None
+                    db_odb_sk = date.fromisoformat(stroj['posledna_odborna_skuska']) if stroj.get('posledna_odborna_skuska') else None
+                    db_geom = date.fromisoformat(stroj['posledna_geometria']) if stroj.get('posledna_geometria') else None
 
                     with st.form(key=f"form_edit_{stroj_id}", clear_on_submit=False):
                         e_col1, e_col2 = st.columns(2)
@@ -710,13 +711,26 @@ with tab_zoznam:
                             
                             st.markdown("---")
                             st.markdown("**1. Revízia (ročne)**")
-                            new_rev = st.date_input("Dátum poslednej revízie:", curr_rev, key=f"inp_rev_{stroj_id}")
-                            clear_rev = st.checkbox("🗑️ Vymazať dátum revízie", value=False, key=f"clear_rev_{stroj_id}")
-                            
+                            if db_rev:
+                                new_rev = st.date_input("Dátum poslednej revízie:", db_rev, key=f"inp_rev_{stroj_id}")
+                                clear_rev = st.checkbox("🗑️ Vymazať dátum revízie", value=False, key=f"clear_rev_{stroj_id}")
+                            else:
+                                st.caption("❌ Nezaevidované")
+                                add_rev = st.checkbox("➕ Zadať dátum revízie", value=False, key=f"add_rev_{stroj_id}")
+                                new_rev = st.date_input("Zadajte dátum:", date.today(), key=f"inp_rev_new_{stroj_id}") if add_rev else None
+                                clear_rev = True if not add_rev else False
+
                             st.markdown("---")
                             st.markdown("**2. Revízna skúška**")
-                            new_rev_sk = st.date_input("Dátum poslednej rev. skúšky:", curr_rev_sk, key=f"inp_revsk_{stroj_id}")
-                            clear_rev_sk = st.checkbox("🗑️ Vymazať dátum rev. skúšky", value=False, key=f"clear_revsk_{stroj_id}")
+                            if db_rev_sk:
+                                new_rev_sk = st.date_input("Dátum poslednej rev. skúšky:", db_rev_sk, key=f"inp_revsk_{stroj_id}")
+                                clear_rev_sk = st.checkbox("🗑️ Vymazať dátum rev. skúšky", value=False, key=f"clear_revsk_{stroj_id}")
+                            else:
+                                st.caption("❌ Nezaevidované")
+                                add_rev_sk = st.checkbox("➕ Zadať dátum rev. skúšky", value=False, key=f"add_revsk_{stroj_id}")
+                                new_rev_sk = st.date_input("Zadajte dátum:", date.today(), key=f"inp_revsk_new_{stroj_id}") if add_rev_sk else None
+                                clear_rev_sk = True if not add_rev_sk else False
+                            
                             list_p_rev = [3, 2, 1]
                             stroj_p_rev = stroj.get('perioda_reviznej_skusky', 2)
                             p_rev_idx = list_p_rev.index(stroj_p_rev) if stroj_p_rev in list_p_rev else 1
@@ -724,14 +738,27 @@ with tab_zoznam:
                             
                             st.markdown("---")
                             st.markdown("**3. Podrobná prehliadka OK (5-ročne)**")
-                            new_pod_ok = st.date_input("Dátum poslednej podrobnej pr.:", curr_pod_ok, key=f"inp_pod_{stroj_id}")
-                            clear_pod_ok = st.checkbox("🗑️ Vymazať dátum podrobnej pr.", value=False, key=f"clear_pod_{stroj_id}")
+                            if db_pod_ok:
+                                new_pod_ok = st.date_input("Dátum poslednej podrobnej pr.:", db_pod_ok, key=f"inp_pod_{stroj_id}")
+                                clear_pod_ok = st.checkbox("🗑️ Vymazať dátum podrobnej pr.", value=False, key=f"clear_pod_{stroj_id}")
+                            else:
+                                st.caption("❌ Nezaevidované")
+                                add_pod_ok = st.checkbox("➕ Zadať dátum podrobnej pr.", value=False, key=f"add_pod_{stroj_id}")
+                                new_pod_ok = st.date_input("Zadajte dátum:", date.today(), key=f"inp_pod_new_{stroj_id}") if add_pod_ok else None
+                                clear_pod_ok = True if not add_pod_ok else False
                         
                         with e_col2:
                             st.markdown("---")
                             st.markdown("**4. Úradná skúška**")
-                            new_urad = st.date_input("Dátum poslednej úradnej sk.:", curr_urad, key=f"inp_urad_{stroj_id}")
-                            clear_urad = st.checkbox("🗑️ Vymazať dátum úradnej sk.", value=False, key=f"clear_urad_{stroj_id}")
+                            if db_urad:
+                                new_urad = st.date_input("Dátum poslednej úradnej sk.:", db_urad, key=f"inp_urad_{stroj_id}")
+                                clear_urad = st.checkbox("🗑️ Vymazať dátum úradnej sk.", value=False, key=f"clear_urad_{stroj_id}")
+                            else:
+                                st.caption("❌ Nezaevidované")
+                                add_urad = st.checkbox("➕ Zadať dátum úradnej sk.", value=False, key=f"add_urad_{stroj_id}")
+                                new_urad = st.date_input("Zadajte dátum:", date.today(), key=f"inp_urad_new_{stroj_id}") if add_urad else None
+                                clear_urad = True if not add_urad else False
+                            
                             list_p_urad = [10, 9, 6, 5, 4, 3]
                             stroj_p_urad = stroj.get('perioda_uradnej_skusky', 5)
                             p_urad_idx = list_p_urad.index(stroj_p_urad) if stroj_p_urad in list_p_urad else 3
@@ -739,23 +766,36 @@ with tab_zoznam:
                             
                             st.markdown("---")
                             st.markdown("**5. Odborná prehliadka**")
-                            new_odb_pr = st.date_input("Dátum poslednej odbornej pr.:", curr_odb_pr, key=f"inp_odbpr_{stroj_id}")
-                            clear_odb_pr = st.checkbox("🗑️ Vymazať dátum odbornej pr.", value=False, key=f"clear_odbpr_{stroj_id}")
+                            if db_odb_pr:
+                                new_odb_pr = st.date_input("Dátum poslednej odbornej pr.:", db_odb_pr, key=f"inp_odbpr_{stroj_id}")
+                                clear_odb_pr = st.checkbox("🗑️ Vymazať dátum odbornej pr.", value=False, key=f"clear_odbpr_{stroj_id}")
+                            else:
+                                st.caption("❌ Nezaevidované")
+                                add_odb_pr = st.checkbox("➕ Zadať dátum odbornej pr.", value=False, key=f"add_odbpr_{stroj_id}")
+                                new_odb_pr = st.date_input("Zadajte dátum:", date.today(), key=f"inp_odbpr_new_{stroj_id}") if add_odb_pr else None
+                                clear_odb_pr = True if not add_odb_pr else False
+                            
                             list_p_odbpr = [3.0, 2.0, 1.0, 0.5, 0.25]
                             stroj_p_odbpr = stroj.get('interval_odborna_pr', 1.0)
                             p_odbpr_idx = list_p_odbpr.index(stroj_p_odbpr) if stroj_p_odbpr in list_p_odbpr else 2
                             interval_odborna_pr = st.selectbox(
                                 "Interval Odbornej prehliadky:", 
-                                list_p_odbpr,
-                                index=p_odbpr_idx,
+                                list_p_odbpr, index=p_odbpr_idx,
                                 format_func=lambda x: "3 roky" if x == 3.0 else ("2 roky" if x == 2.0 else ("1 rok (ročne)" if x == 1.0 else ("6 mesiacov (polročne)" if x == 0.5 else "3 mesiace (štvrťročne)"))),
                                 key=f"sel_odbpr_{stroj_id}"
                             )
                             
                             st.markdown("---")
                             st.markdown("**6. Odborná skúška**")
-                            new_odb_sk = st.date_input("Dátum poslednej odbornej sk.:", curr_odb_sk, key=f"inp_odbsk_{stroj_id}")
-                            clear_odb_sk = st.checkbox("🗑️ Vymazať dátum odbornej sk.", value=False, key=f"clear_odbsk_{stroj_id}")
+                            if db_odb_sk:
+                                new_odb_sk = st.date_input("Dátum poslednej odbornej sk.:", db_odb_sk, key=f"inp_odbsk_{stroj_id}")
+                                clear_odb_sk = st.checkbox("🗑️ Vymazať dátum odbornej sk.", value=False, key=f"clear_odbsk_{stroj_id}")
+                            else:
+                                st.caption("❌ Nezaevidované")
+                                add_odb_sk = st.checkbox("➕ Zadať dátum odbornej sk.", value=False, key=f"add_odbsk_{stroj_id}")
+                                new_odb_sk = st.date_input("Zadajte dátum:", date.today(), key=f"inp_odbsk_new_{stroj_id}") if add_odb_sk else None
+                                clear_odb_sk = True if not add_odb_sk else False
+                            
                             list_p_odbsk = [6, 4, 3, 2, 1]
                             stroj_p_odbsk = stroj.get('perioda_odbornej_skusky', 1)
                             p_odbsk_idx = list_p_odbsk.index(stroj_p_odbsk) if stroj_p_odbsk in list_p_odbsk else 4
@@ -763,14 +803,21 @@ with tab_zoznam:
                         
                         st.markdown("---")
                         new_ma_geom = st.checkbox("Vykonáva sa Geometrické zameranie?", value=stroj.get('vykonava_sa_geometria', False), key=f"chk_geom_{stroj_id}")
-                        new_geom = st.date_input("Posledná Geometria dráhy:", curr_geom, key=f"inp_geom_{stroj_id}") if (new_ma_geom and stroj.get('posledna_geometria')) else (date.today() if new_ma_geom else None)
-                        clear_geom = st.checkbox("🗑️ Vymazať dátum geometrie", value=False, key=f"clear_geom_{stroj_id}") if new_ma_geom else False
-                                                                   
-                    
+                        if new_ma_geom:
+                            if db_geom:
+                                new_geom = st.date_input("Posledná Geometria dráhy:", db_geom, key=f"inp_geom_{stroj_id}")
+                                clear_geom = st.checkbox("🗑️ Vymazať dátum geometrie", value=False, key=f"clear_geom_{stroj_id}")
+                            else:
+                                st.caption("❌ Nezaevidované")
+                                add_geom = st.checkbox("➕ Zadať dátum geometrie", value=False, key=f"add_geom_{stroj_id}")
+                                new_geom = st.date_input("Zadajte dátum:", date.today(), key=f"inp_geom_new_{stroj_id}") if add_geom else None
+                                clear_geom = True if not add_geom else False
+                        else:
+                            new_geom = None
+                            clear_geom = False
+
                         kliknute_ulozit = st.form_submit_button("💾 Uložiť zmeny stroja")
-                        
                         if kliknute_ulozit:
-                            # Ak užívateľ zaškrtol vymazanie, uložíme None, inak vypočítame lehotu
                             final_rev = None if clear_rev else new_rev
                             n_rev = vypocitaj_nasledujuci(final_rev, 1)
                             
@@ -822,4 +869,4 @@ with tab_zoznam:
                             except Exception as e:
                                 st.error(f"Nepodarilo sa uložiť zmeny: {e}")
                 st.markdown("---")
-                        
+                            

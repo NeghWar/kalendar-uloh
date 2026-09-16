@@ -97,17 +97,29 @@ with tab_prehlad:
     st.header("🔔 Inteligentný prehľad a semafor revízií")
     
     dnes = date.today()
-    # Automaticky zistíme aktuálny mesiac a rok
     akt_mesiac = dnes.month
     akt_rok = dnes.year
     
-    # Výpočet pre nasledujúci mesiac
     if akt_mesiac == 12:
         nasl_mesiac = 1
         nasl_rok = akt_rok + 1
     else:
         nasl_mesiac = akt_mesiac + 1
         nasl_rok = akt_rok
+
+    # Načítanie existujúcich poznámok z databázy
+    try:
+        odpoved_poznamky = supabase.table("poznamky_restov").select("*").execute()
+        vsetky_poznamky = odpoved_poznamky.data
+    except Exception:
+        vsetky_poznamky = []
+
+    # Pomocná funkcia na rýchle vyhľadanie poznámky
+    def najdi_poznamku(s_id, t_kontroly):
+        for p in vsetky_poznamky:
+            if p["stroj_id"] == s_id and p["typ_kontroly"] == t_kontroly:
+                return p["text_poznamky"]
+        return None
 
     # --- 🚨 SEKCIA 1: KRITICKÉ UPOZORNENIA Z MINULOSTI 🚨 ---
     st.subheader("🚨 Kritické nedoplatky (Zameškané z minulých mesiacov)")
@@ -117,17 +129,50 @@ with tab_prehlad:
         for stlpec, nazov_kontroly in definicia_kontrol.items():
             if stroj.get(stlpec):
                 termin = date.fromisoformat(stroj[stlpec])
-                # Ak je termín starší ako tento mesiac a rok
+                
                 if termin < date(akt_rok, akt_mesiac, 1):
                     nasli_sa_stare_resty = True
                     dni_po = (dnes - termin).days
+                    stroj_id = stroj["id"]
+                    
                     st.error(f"❌ **{stroj['nazov']}** ({stroj['umiestnenie']}) -> **{nazov_kontroly}** mala byť hotová do **{termin.strftime('%d.%m.%Y')}** (Mešká už {dni_po} dní!)")
+                    
+                    existujuca_poznamka = najdi_poznamku(stroj_id, stlpec)
+                    if existujuca_poznamka:
+                        st.info(f"ℹ️ **Dôvod zameškania:** {existujuca_poznamka}")
+                    
+                    with st.expander(f"📝 Upraviť poznámku k zdôvodneniu meškania"):
+                        with st.form(key=f"form_poznamka_{stroj_id}_{stlpec}"):
+                            nova_poznamka = st.text_area(
+                                "Dôvod (napr. Stroj v poruche, čaká sa na diel / dohodnutý termín):", 
+                                value=existujuca_poznamka if existujuca_poznamka else "",
+                                key=f"txt_{stroj_id}_{stlpec}"
+                            )
+                            tlacidlo_ulozit_p = st.form_submit_button("💾 Uložiť dôvod")
+                            
+                            if tlacidlo_ulozit_p:
+                                try:
+                                    upsert_data = {
+                                        "stroj_id": stroj_id,
+                                        "typ_kontroly": stlpec,
+                                        "text_poznamky": nova_poznamka
+                                    }
+                                    if existujuca_poznamka:
+                                        supabase.table("poznamky_restov").update({"text_poznamky": nova_poznamka}).eq("stroj_id", stroj_id).eq("typ_kontroly", stlpec).execute()
+                                    else:
+                                        supabase.table("poznamky_restov").insert(upsert_data).execute()
+                                    st.toast("Poznámka bola úspešne uložená! 📝")
+                                    st.rerun()
+                                except Exception as err:
+                                    st.error(f"Chyba pri ukladaní: {err}")
+                    st.write("")
                     
     if not nasli_sa_stare_resty:
         st.success("Skvelé! Nemáte žiadne staré zameškané revízie z minulých mesiacov. 🎉")
         
     st.markdown("---")
-    
+                           
+
     # --- 📅 SEKCIA 2: PLÁN NA AKTUÁLNY MESIAC (SEMAFOR) 📅 ---
     mesiace_nazvy = ["Január", "Február", "Marec", "Apríl", "Máj", "Jún", "Júl", "August", "September", "Október", "November", "December"]
     st.subheader(f"📅 Stav revízií na tento mesiac: {mesiace_nazvy[akt_mesiac - 1]} {akt_rok}")

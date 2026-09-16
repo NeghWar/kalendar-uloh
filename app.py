@@ -770,34 +770,48 @@ with tab_zoznam:
                         kliknute_ulozit = st.form_submit_button("💾 Uložiť zmeny stroja")
                         
                         if kliknute_ulozit:
-                            n_rev = vypocitaj_nasledujuci(new_rev, 1) if new_rev else None
-                            n_rev_sk = vypocitaj_nasledujuci(new_rev_sk, int(new_p_rev)) if new_rev_sk else None
-                            n_pod_ok = vypocitaj_nasledujuci(new_pod_ok, 5) if new_pod_ok else None
-                            n_urad = vypocitaj_nasledujuci(new_urad, int(new_p_urad)) if new_urad else None
-                            n_odb_pr = vypocitaj_nasledujuci(new_odb_pr, interval_odborna_pr) if new_odb_pr else None
-                            n_odb_sk = vypocitaj_nasledujuci(new_odb_sk, int(new_p_odbsk)) if new_odb_sk else None
-                            n_geom = vypocitaj_nasledujuci(new_geom, 10) if (new_ma_geom and new_geom) else None
+                            # Ak užívateľ zaškrtol vymazanie, uložíme None, inak vypočítame lehotu
+                            final_rev = None if clear_rev else new_rev
+                            n_rev = vypocitaj_nasledujuci(final_rev, 1)
+                            
+                            final_rev_sk = None if clear_rev_sk else new_rev_sk
+                            n_rev_sk = vypocitaj_nasledujuci(final_rev_sk, int(new_p_rev))
+                            
+                            final_pod_ok = None if clear_pod_ok else new_pod_ok
+                            n_pod_ok = vypocitaj_nasledujuci(final_pod_ok, 5)
+                            
+                            final_urad = None if clear_urad else new_urad
+                            n_urad = vypocitaj_nasledujuci(final_urad, int(new_p_urad))
+                            
+                            final_odb_pr = None if clear_odb_pr else new_odb_pr
+                            n_odb_pr = vypocitaj_nasledujuci(final_odb_pr, interval_odborna_pr)
+                            
+                            final_odb_sk = None if clear_odb_sk else new_odb_sk
+                            n_odb_sk = vypocitaj_nasledujuci(final_odb_sk, int(new_p_odbsk))
+                            
+                            final_geom = None if (clear_geom or not new_ma_geom) else new_geom
+                            n_geom = vypocitaj_nasledujuci(final_geom, 10) if (new_ma_geom and final_geom) else None
                             
                             pripravene_data = {
                                 "nazov": new_nazov.strip(), 
                                 "umiestnenie": new_umiestnenie.strip() if new_umiestnenie else None,
-                                "posledna_revizia": new_rev.isoformat() if new_rev else None,
+                                "posledna_revizia": final_rev.isoformat() if final_rev else None,
                                 "nasledujuca_revizia": n_rev.isoformat() if n_rev else None,
-                                "posledna_revizna_skuska": new_rev_sk.isoformat() if new_rev_sk else None,
+                                "posledna_revizna_skuska": final_rev_sk.isoformat() if final_rev_sk else None,
                                 "perioda_reviznej_skusky": int(new_p_rev),
                                 "nasledujuca_revizna_skuska": n_rev_sk.isoformat() if n_rev_sk else None,
-                                "posledna_podrobna_prehliadka_ok": new_pod_ok.isoformat() if new_pod_ok else None,
+                                "posledna_podrobna_prehliadka_ok": final_pod_ok.isoformat() if final_pod_ok else None,
                                 "nasledujuca_podrobna_prehliadka_ok": n_pod_ok.isoformat() if n_pod_ok else None,
-                                "posledna_uradna_skuska": new_urad.isoformat() if new_urad else None,
+                                "posledna_uradna_skuska": final_urad.isoformat() if final_urad else None,
                                 "perioda_uradnej_skusky": int(new_p_urad),
                                 "nasledujuca_uradna_skuska": n_urad.isoformat() if n_urad else None,
-                                "posledna_odborna_prehliadka": new_odb_pr.isoformat() if new_odb_pr else None,
+                                "posledna_odborna_prehliadka": final_odb_pr.isoformat() if final_odb_pr else None,
                                 "nasledujuca_odborna_prehliadka": n_odb_pr.isoformat() if n_odb_pr else None,
-                                "posledna_odborna_skuska": new_odb_sk.isoformat() if new_odb_sk else None,
+                                "posledna_odborna_skuska": final_odb_sk.isoformat() if final_odb_sk else None,
                                 "nasledujuca_odborna_skuska": n_odb_sk.isoformat() if n_odb_sk else None,
                                 "vykonava_sa_geometria": new_ma_geom,
-                                "posledna_geometria": new_geom.isoformat() if (new_ma_geom and new_geom) else None,
-                                "nasledujuca_geometria": n_geom.isoformat() if (new_ma_geom and n_geom) else None,
+                                "posledna_geometria": final_geom.isoformat() if final_geom else None,
+                                "nasledujuca_geometria": n_geom.isoformat() if n_geom else None,
                             }
                             
                             try:
@@ -808,4 +822,4 @@ with tab_zoznam:
                             except Exception as e:
                                 st.error(f"Nepodarilo sa uložiť zmeny: {e}")
                 st.markdown("---")
-                    
+                        

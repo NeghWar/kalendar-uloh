@@ -335,33 +335,74 @@ with tab_prehlad:
     if not nasli_sa_stare_resty:
         st.success("Skvelé! Nemáte žiadne staré zameškané revízie z minulých mesiacov. 🎉")
  
+
 # ==========================================
 # ZÁLOŽKA 2: MESAČNÝ KALENDÁR
 # ==========================================
 with tab_kalendar:
-    st.header("📅 Prehľad podľa mesiacov")
+    st.header("📅 Inteligentný archív a plánovač podľa mesiacov")
+    st.caption("Vyberte si ľubovoľný mesiac a rok pre zobrazenie stavu revízií.")
     
+    dnesny_dt = date.today()
+    
+    # Príprava selectboxov
     c_rok, c_mes = st.columns(2)
     with c_rok:
-        izvoleny_rok = st.selectbox("Rok:", [2024, 2025, 2026, 2027, 2028, 2029, 2030], index=2)
+        # Vygenerujeme zoznam rokov od 2019 po 2099
+        roky_na_vyber = list(range(2019, 2100))
+        # Automaticky nastavíme ako predvolený aktuálny rok v systéme
+        predvoleny_rok_idx = roky_na_vyber.index(dnesny_dt.year) if dnesny_dt.year in roky_na_vyber else 0
+        izvoleny_rok = st.selectbox("Vyberte rok:", roky_na_vyber, index=predvoleny_rok_idx, key="arch_rok")
+        
     with c_mes:
         mesiace_sk = ["Január", "Február", "Marec", "Apríl", "Máj", "Jún", "Júl", "August", "September", "Október", "November", "December"]
-        izvoleny_mesiac_nazov = st.selectbox("Mesiac:", mesiace_sk, index=date.today().month - 1)
+        izvoleny_mesiac_nazov = st.selectbox("Vyberte mesiac:", mesiace_sk, index=dnesny_dt.month - 1, key="arch_mes")
         izvoleny_mesiac_num = mesiace_sk.index(izvoleny_mesiac_nazov) + 1
 
-    st.subheader(f"Plán revízií na: {izvoleny_mesiac_nazov} {izvoleny_rok}")
-    nasli_sa_v_mesiaci = False
+    st.subheader(f"📊 Stav revízií pre obdobie: {izvoleny_mesiac_nazov} {izvoleny_rok}")
+    nasli_sa_záznamy = False
     
+    # Príprava prepojenia kvôli overovaniu zelenej farby
+    odpovedajuce_posledne_z2 = {
+        "nasledujuca_revizia": "posledna_revizia", "nasledujuca_revizna_skuska": "posledna_revizna_skuska",
+        "nasledujuca_podrobna_prehliadka_ok": "posledna_podrobna_prehliadka_ok", "nasledujuca_uradna_skuska": "posledna_uradna_skuska",
+        "nasledujuca_odborna_prehliadka": "posledna_odborna_prehliadka", "nasledujuca_odborna_skuska": "posledna_odborna_skuska",
+        "nasledujuca_geometria": "posledna_geometria"
+    }
     for stroj in vsetky_stroje:
-        for stlpec, nazov_kontroly in definicia_kontrol.items():
-            if stroj.get(stlpec):
-                termin = date.fromisoformat(stroj[stlpec])
-                if termin.year == izvoleny_rok and termin.month == izvoleny_mesiac_num:
-                    nasli_sa_v_mesiaci = True
-                    st.info(f"📅 **{termin.strftime('%d.%m.%Y')}** - **{stroj['nazov']}** ({stroj['umiestnenie']}) -> Vykonať: *{nazov_kontroly}*")
+        for stlpec_nasl, nazov_kontroly in definicia_kontrol.items():
+            stlpec_posl = odpovedajuce_posledne_z2.get(stlpec_nasl)
+            
+            iso_nasl = stroj.get(stlpec_nasl)
+            iso_posl = stroj.get(stlpec_posl) if stlpec_posl else None
+            
+            # 1. PRÍPAD: VYKONANÁ REVIZIA (ZELENÁ ✅)
+            # Zobrazí sa v mesiaci, kedy bola reálne vykonaná
+            if iso_posl:
+                posl_dt = date.fromisoformat(iso_posl)
+                if posl_dt.year == izvoleny_rok and posl_dt.month == izvoleny_mesiac_num:
+                    nasli_sa_záznamy = True
+                    pekny_d = posl_dt.strftime('%d.%m.%Y')
+                    st.success(f"✅ **{pekny_d}** — **{stroj['nazov']}** ({stroj['umiestnenie'] or 'Nezadané'}) -> **{nazov_kontroly}** [VYKONANÉ]")
+                    continue # Ak bola spravená, nebudeme ju pre tento mesiac vypisovať duplicitne ako plánovanú
+
+            # 2. PRÍPAD: PLÁNOVANÁ REVIZIA (ČERVENÁ 🚨 alebo MODRÁ 🔵)
+            if iso_nasl:
+                nasl_dt = date.fromisoformat(iso_nasl)
+                if nasl_dt.year == izvoleny_rok and nasl_dt.month == izvoleny_mesiac_num:
+                    nasli_sa_záznamy = True
+                    pekny_d = nasl_dt.strftime('%d.%m.%Y')
                     
-    if not nasli_sa_v_mesiaci:
-        st.text("Pre tento mesiac nie sú naplánované žiadne revízie.")
+                    # Logika pre priradenie správnej farby podľa času
+                    # Ak je zvolený termín už v minulosti oproti dnešku a nebol zapísaný ako hotový -> ČERVENÁ
+                    if nasl_dt < dnesny_dt:
+                        st.error(f"🚨 **{pekny_d}** — **{stroj['nazov']}** ({stroj['umiestnenie'] or 'Nezadané'}) -> **{nazov_kontroly}** [TERMÍN UPLYNUL / NESPLNENÉ]")
+                    # Ak je termín dnes alebo v budúcnosti -> MODRÁ (Streamlit .info)
+                    else:
+                        st.info(f"🔵 **{pekny_d}** — **{stroj['nazov']}** ({stroj['umiestnenie'] or 'Nezadané'}) -> **{nazov_kontroly}** [PLÁNOVANÉ / ČAKÁ NA VYKONANIE]")
+
+    if not nasli_sa_záznamy:
+        st.caption("Pre toto obdobie nie sú zaznamenané žiadne splnené ani plánované revízie.")
 
 # ==========================================
 # ZÁLOŽKA 3: PRIDANIE / EVIDENCIA STROJA

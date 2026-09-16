@@ -544,28 +544,9 @@ with tab_pridat:
                 st.rerun()
 
     # --- 🛡️ BEZPEČNÁ FUNKCIA PRE POTVRDENIE PREPISU ---
-    @st.dialog("⚠️ Zariadenie už existuje")
-    def potvrdit_prepis_dialog(stroj_id, stare_meno, nove_data):
-        st.markdown(f"Zariadenie s názvom **'{stare_meno}'** sa už v systéme nachádza.")
-        st.markdown("Chcete pôvodný stroj nahradiť týmito novými údajmi a nanovo prepočítať termíny?")
-        
-        c_dup1, c_dup2 = st.columns(2)
-        with c_dup1:
-            if st.button("🔄 Áno, prepísať starý záznam", key="btn_confirm_overwrite", use_container_width=True):
-                try:
-                    supabase.table("stroje").update(nove_data).eq("id", stroj_id).execute()
-                    st.toast(f"Stroj '{stare_meno}' bol úspešne prepísaný! 💾")
-                    st.rerun()
-                except Exception as err:
-                    st.error(f"Nepodarilo sa prepísať stroj: {err}")
-                    
-        with c_dup2:
-            if st.button("❌ Nie, ponechať pôvodný", key="btn_cancel_overwrite", use_container_width=True):
-                st.rerun()
-
     # --- SPRACOVANIE FORMULÁRA PO STLAČENÍ ULOŽIŤ ---
     if tlacidlo_ulozit and nazov:
-        # 1. Prepočet termínov podla vybraných periodít
+        # 1. Prepočet termínov podľa vybraných periodít
         n_rev = vypocitaj_nasledujuci(p_revizia, 1)
         n_rev_sk = vypocitaj_nasledujuci(p_revizna_sk, perioda_reviznej)
         n_pod_ok = vypocitaj_nasledujuci(p_podrobna_ok, 5)
@@ -604,18 +585,51 @@ with tab_pridat:
                 break
 
         if stroj_existuje:
-            # Ak stroj existuje, iba otvoríme vyskakovacie okno, NIČ NEUKLADÁME
-            potvrdit_prepis_dialog(stroj_existuje["id"], stroj_existuje["nazov"], pripravene_novy_stroj)
+            # Ak existuje duplicita, iba si zapíšeme dáta do session_state a nikam nezapisujeme
+            st.session_state["stroj_na_prepis_id"] = stroj_existuje["id"]
+            st.session_state["stroj_na_prepis_nazov"] = stroj_existuje["nazov"]
+            st.session_state["stroj_na_prepis_data"] = pripravene_novy_stroj
         else:
-            # Ak je stroj nový, hneď ho zapíšeme
+            # Ak je úplne nový, rovno ho vložíme
             try:
                 supabase.table("stroje").insert(pripravene_novy_stroj).execute()
                 st.success(f"✅ Nový stroj '{nazov}' bol úspešne zaevidovaný!")
+                st.session_state["stroj_na_prepis_id"] = None # Vyčistíme staré stavy
                 st.rerun()
             except Exception as e:
                 st.error(f"Chyba pri ukladaní stroja: {e}")
-    
 
+    # 3. ZOBRAZENIE BLOKU PRE POTVRDENIE (Zobrazí sa bezpečne na ploche mimo formulára)
+    if st.session_state.get("stroj_na_prepis_id"):
+        dup_id = st.session_state["stroj_na_prepis_id"]
+        dup_nazov = st.session_state["stroj_na_prepis_nazov"]
+        dup_data = st.session_state["stroj_na_prepis_data"]
+        
+        st.markdown("---")
+        st.warning(f"⚠️ **Upozornenie:** Zariadenie s názvom **'{dup_nazov}'** sa už v systéme nachádza.")
+        st.write("Chcete pôvodný stroj nahradiť týmito novými údajmi a nanovo prepočítať termíny?")
+        
+        c_dup1, c_dup2 = st.columns(2)
+        with c_dup1:
+            # Kľúč tlačidla obsahuje ID stroja, takže bude vždy 100% unikátny
+            if st.button("🔄 Áno, prepísať starý záznam", key=f"btn_overwrite_confirm_{dup_id}", use_container_width=True):
+                try:
+                    supabase.table("stroje").update(dup_data).eq("id", dup_id).execute()
+                    st.toast(f"Stroj '{dup_nazov}' bol úspešne prepísaný! 💾")
+                    st.session_state["stroj_na_prepis_id"] = None
+                    st.session_state["stroj_na_prepis_data"] = None
+                    st.rerun()
+                except Exception as err:
+                    st.error(f"Nepodarilo sa prepísať stroj: {err}")
+                    
+        with c_dup2:
+            if st.button("❌ Nie, ponechať pôvodný", key=f"btn_overwrite_cancel_{dup_id}", use_container_width=True):
+                st.session_state["stroj_na_prepis_id"] = None
+                st.session_state["stroj_na_prepis_data"] = None
+                st.info("Pôvodný stroj zostal v databáze nezmenený.")
+                st.rerun()
+  
+  
 # ==========================================
 # ZÁLOŽKA 4: ZOZNAM STROJOV, ÚPRAVA A MAZANIE
 # ==========================================

@@ -387,3 +387,67 @@ with tab_zoznam:
                             st.markdown("**Podrobná prehliadka OK**")
                             has_pod_ok = st.checkbox("Evidovať dátum podrobnej pr.", value=bool(stroj.get('posledna_podrobna_prehliadka_ok')), key=f"has_pod_{stroj_id}")
                             new_pod_ok = st.date_input("Posledná Podrobná prehliadka OK (5r):", curr_pod_ok, key=f"inp_pod_{stroj_id}") if has_pod_ok else None
+                        with e_col2:
+                            st.markdown("**Úradná skúška**")
+                            has_urad = st.checkbox("Evidovať dátum úradnej sk.", value=bool(stroj.get('posledna_uradna_skuska')), key=f"has_urad_{stroj_id}")
+                            new_urad = st.date_input("Posledná Úradná skúška:", curr_urad, key=f"inp_urad_{stroj_id}") if has_urad else None
+                            stroj_p_urad = stroj.get('perioda_uradnej_skusky', 5)
+                            p_urad_index = 0 if stroj_p_urad == 5 else (1 if stroj_p_urad == 6 else 2)
+                            new_p_urad = st.selectbox("Perióda Úradnej skúšky (roky):", [5, 6, 10], index=p_urad_index, key=f"sel_urad_{stroj_id}")
+                            
+                            st.markdown("**Odborná prehliadka**")
+                            has_odb_pr = st.checkbox("Evidovať dátum odbornej pr.", value=bool(stroj.get('posledna_odborna_prehliadka')), key=f"has_odbpr_{stroj_id}")
+                            new_odb_pr = st.date_input("Posledná Odborná prehliadka:", curr_odb_pr, key=f"inp_odbpr_{stroj_id}") if has_odb_pr else None
+                            
+                            st.markdown("**Odborná skúška**")
+                            has_odb_sk = st.checkbox("Evidovať dátum odbornej sk.", value=bool(stroj.get('posledna_odborna_skuska')), key=f"has_odbsk_{stroj_id}")
+                            new_odb_sk = st.date_input("Posledná Odborná skúška:", curr_odb_sk, key=f"inp_odbsk_{stroj_id}") if has_odb_sk else None
+                        
+                        st.markdown("---")
+                        new_ma_geom = st.checkbox("Vykonáva sa Geometrické zameranie dráhy?", value=stroj.get('vykonava_sa_geometria', False), key=f"chk_geom_{stroj_id}")
+                        new_geom = st.date_input("Posledná Geometria dráhy:", curr_geom, key=f"inp_geom_{stroj_id}") if (new_ma_geom and stroj.get('posledna_geometria')) else (date.today() if new_ma_geom else None)
+                        if new_ma_geom:
+                            has_geom = st.checkbox("Evidovať dátum pre Geometriu", value=bool(stroj.get('posledna_geometria')), key=f"has_geom_{stroj_id}")
+                            if not has_geom:
+                                new_geom = None
+                        kliknute_ulozit = st.form_submit_button("💾 Uložiť zmeny stroja")
+                        
+                        if kliknute_ulozit:
+                            n_rev = vypocitaj_nasledujuci(new_rev, 1) if new_rev else None
+                            n_rev_sk = vypocitaj_nasledujuci(new_rev_sk, int(new_p_rev)) if new_rev_sk else None
+                            n_pod_ok = vypocitaj_nasledujuci(new_pod_ok, 5) if new_pod_ok else None
+                            n_urad = vypocitaj_nasledujuci(new_urad, int(new_p_urad)) if new_urad else None
+                            n_odb_pr = vypocitaj_nasledujuci(new_odb_pr, 1) if new_odb_pr else None
+                            n_odb_sk = vypocitaj_nasledujuci(new_odb_sk, 1) if new_odb_sk else None
+                            n_geom = vypocitaj_nasledujuci(new_geom, 10) if (new_ma_geom and new_geom) else None
+                            
+                            pripravene_data = {
+                                "nazov": new_nazov, 
+                                "umiestnenie": new_umiestnenie,
+                                "posledna_revizia": new_rev.isoformat() if new_rev else None,
+                                "nasledujuca_revizia": n_rev.isoformat() if n_rev else None,
+                                "posledna_revizna_skuska": new_rev_sk.isoformat() if new_rev_sk else None,
+                                "perioda_reviznej_skusky": int(new_p_rev),
+                                "nasledujuca_revizna_skuska": n_rev_sk.isoformat() if n_rev_sk else None,
+                                "posledna_podrobna_prehliadka_ok": new_pod_ok.isoformat() if new_pod_ok else None,
+                                "nasledujuca_podrobna_prehliadka_ok": n_pod_ok.isoformat() if n_pod_ok else None,
+                                "posledna_uradna_skuska": new_urad.isoformat() if new_urad else None,
+                                "perioda_uradnej_skusky": int(new_p_urad),
+                                "nasledujuca_uradna_skuska": n_urad.isoformat() if n_urad else None,
+                                "posledna_odborna_prehliadka": new_odb_pr.isoformat() if new_odb_pr else None,
+                                "nasledujuca_odborna_prehliadka": n_odb_pr.isoformat() if n_odb_pr else None,
+                                "posledna_odborna_skuska": new_odb_sk.isoformat() if new_odb_sk else None,
+                                "nasledujuca_odborna_skuska": n_odb_sk.isoformat() if n_odb_sk else None,
+                                "vykonava_sa_geometria": new_ma_geom,
+                                "posledna_geometria": new_geom.isoformat() if (new_ma_geom and new_geom) else None,
+                                "nasledujuca_geometria": n_geom.isoformat() if (new_ma_geom and n_geom) else None,
+                            }
+                            
+                            try:
+                                supabase.table("stroje").update(pripravene_data).eq("id", stroj_id).execute()
+                                st.toast("Zmeny boli úspešne uložené! 💾")
+                                st.session_state[f"editovanie_{stroj_id}"] = False
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Nepodarilo sa uložiť zmeny: {e}")
+                st.markdown("---")

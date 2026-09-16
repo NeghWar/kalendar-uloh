@@ -188,8 +188,8 @@ with tab_prehlad:
     # === 🗓️ 1. STĹPEC: AKTUÁLNY MESIAC ===
     with col_kal1:
         with st.container(border=True):
-            st.markdown(f"<h4 style='text-align:center; color:#1F4E78; margin-top:0;'>📅 {mesiace_nazvy[akt_mesiac - 1]} {akt_rok}</h4>", unsafe_allow_html=True)
-            
+            st.markdown(f"<h4 style='text-align:center; color:#1F4E78; margin-top:0;'>📅 Aktuálny mesiac: {mesiace_nazvy[akt_mesiac - 1]} {akt_rok}</h4>", unsafe_allow_html=True)
+
             st_cols_dni1 = st.columns(7)
             for i, d_nazov in enumerate(dni_v_tyzdni):
                 st_cols_dni1[i].markdown(f"<p style='text-align:center; font-weight:bold; margin-bottom:5px; color:#555;'>{d_nazov}</p>", unsafe_allow_html=True)
@@ -237,7 +237,7 @@ with tab_prehlad:
     # === 🗓️ 2. STĹPEC: BUDÚCI MESIAC ===
     with col_kal2:
         with st.container(border=True):
-            st.markdown(f"<h4 style='text-align:center; color:#2E7D32; margin-top:0;'>⏭️ {mesiace_nazvy[nasl_mesiac - 1]} {nasl_rok}</h4>", unsafe_allow_html=True)
+            st.markdown(f"<h4 style='text-align:center; color:#2E7D32; margin-top:0;'>⏭️ Nasledujúci mesiac: {mesiace_nazvy[nasl_mesiac - 1]} {nasl_rok}</h4>", unsafe_allow_html=True)
             
             st_cols_dni2 = st.columns(7)
             for i, d_nazov in enumerate(dni_v_tyzdni):

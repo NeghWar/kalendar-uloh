@@ -121,58 +121,7 @@ with tab_prehlad:
                 return p["text_poznamky"]
         return None
 
-    # --- 🚨 SEKCIA 1: KRITICKÉ UPOZORNENIA Z MINULOSTI 🚨 ---
-    st.subheader("🚨 Kritické nedoplatky (Zameškané z minulých mesiacov)")
-    nasli_sa_stare_resty = False
-    
-    for stroj in vsetky_stroje:
-        for stlpec, nazov_kontroly in definicia_kontrol.items():
-            if stroj.get(stlpec):
-                termin = date.fromisoformat(stroj[stlpec])
-                
-                if termin < date(akt_rok, akt_mesiac, 1):
-                    nasli_sa_stare_resty = True
-                    dni_po = (dnes - termin).days
-                    stroj_id = stroj["id"]
-                    
-                    st.error(f"❌ **{stroj['nazov']}** ({stroj['umiestnenie']}) -> **{nazov_kontroly}** mala byť hotová do **{termin.strftime('%d.%m.%Y')}** (Mešká už {dni_po} dní!)")
-                    
-                    existujuca_poznamka = najdi_poznamku(stroj_id, stlpec)
-                    if existujuca_poznamka:
-                        st.info(f"ℹ️ **Dôvod zameškania:** {existujuca_poznamka}")
-                    
-                    with st.expander(f"📝 Upraviť poznámku k zdôvodneniu meškania"):
-                        with st.form(key=f"form_poznamka_{stroj_id}_{stlpec}"):
-                            nova_poznamka = st.text_area(
-                                "Dôvod (napr. Stroj v poruche, čaká sa na diel / dohodnutý termín):", 
-                                value=existujuca_poznamka if existujuca_poznamka else "",
-                                key=f"txt_{stroj_id}_{stlpec}"
-                            )
-                            tlacidlo_ulozit_p = st.form_submit_button("💾 Uložiť dôvod")
-                            
-                            if tlacidlo_ulozit_p:
-                                try:
-                                    upsert_data = {
-                                        "stroj_id": stroj_id,
-                                        "typ_kontroly": stlpec,
-                                        "text_poznamky": nova_poznamka
-                                    }
-                                    if existujuca_poznamka:
-                                        supabase.table("poznamky_restov").update({"text_poznamky": nova_poznamka}).eq("stroj_id", stroj_id).eq("typ_kontroly", stlpec).execute()
-                                    else:
-                                        supabase.table("poznamky_restov").insert(upsert_data).execute()
-                                    st.toast("Poznámka bola úspešne uložená! 📝")
-                                    st.rerun()
-                                except Exception as err:
-                                    st.error(f"Chyba pri ukladaní: {err}")
-                    st.write("")
-                    
-    if not nasli_sa_stare_resty:
-        st.success("Skvelé! Nemáte žiadne staré zameškané revízie z minulých mesiacov. 🎉")
-        
-    st.markdown("---")
-                          
-    # --- 📅 SEKCIA 2 & 3: DUÁLNY KALENDÁROVÝ SYSTÉM (AKTUÁLNY A BUDÚCI MESIAC) 📅 ---
+    # --- 📅 SEKCIA 2 & 3: DUÁLNY KALENDÁROVÝ SYSTÉM 📅 ---
     import calendar
     mesiace_nazvy = ["Január", "Február", "Marec", "Apríl", "Máj", "Jún", "Júl", "August", "September", "Október", "November", "December"]
     
@@ -225,16 +174,14 @@ with tab_prehlad:
                     status = "cervena" if nasl_dt < dnes else "oranzova"
                     udalosti_buduci[den].append({"stroj": stroj["nazov"], "miesto": stroj["umiestnenie"] or "Nezadané", "kontrola": nazov_kontroly, "status": status})
 
-    # Inicializácia session stavov pre výber dňa a mesiaca
     if "zvoleny_den_duany" not in st.session_state: st.session_state["zvoleny_den_duany"] = None
     if "zvoleny_typ_mesiaca" not in st.session_state: st.session_state["zvoleny_typ_mesiaca"] = None
 
-    # Rozdelíme obrazovku na dva stĺpce pre dva kalendáre
+    # === 🛠️ SPOLOČNÁ DEFINÍCIA PRE KALENDÁRE ===
     col_kal1, col_kal2 = st.columns(2)
     dni_v_tyzdni = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"]
     cal = calendar.Calendar(firstweekday=0)
 
-    # Pomocné premenné, aby sme vedeli, čo používateľ zaklikol
     zvoleny_den = st.session_state.get("zvoleny_den_duany")
     zvoleny_typ = st.session_state.get("zvoleny_typ_mesiaca")
 
@@ -335,35 +282,58 @@ with tab_prehlad:
                     st.session_state["zvoleny_den_duany"] = None
                     st.session_state["zvoleny_typ_mesiaca"] = None
                     st.rerun()
-  
-  
-    # === 🔍 INTERAKTÍVNY VÝPIS DETAILOV POD KALENDÁRMI ===
-    zvoleny_den = st.session_state["zvoleny_den_duany"]
-    zvoleny_typ = st.session_state["zvoleny_typ_mesiaca"]
+   
+
+    # --- 🚨 SEKCIA: KRITICKÉ UPOZORNENIA Z MINULOSTI (PRESUNUTÉ NA SPODOK) 🚨 ---
+    st.markdown("<br><br>", unsafe_allow_html=True)  # Decentná medzera na oddelenie
+    st.subheader("🚨 Kritické nedoplatky (Zameškané z minulých mesiacov)")
+    nasli_sa_stare_resty = False
     
-    if zvoleny_den and zvoleny_typ:
-        m_nazov = mesiace_nazvy[akt_mesiac - 1] if zvoleny_typ == "aktualny" else mesiace_nazvy[nasl_mesiac - 1]
-        r_cifry = akt_rok if zvoleny_typ == "aktualny" else nasl_rok
-        mapa_udalosti = udalosti_aktualny if zvoleny_typ == "aktualny" else udalosti_buduci
-        
-        st.markdown(f"### 🔍 Podrobnosti pre deň: **{zvoleny_den}. {m_nazov} {r_cifry}**")
-        
-        if zvoleny_den in mapa_udalosti:
-            for u in mapa_udalosti[zvoleny_den]:
-                if u["status"] == "zelena":
-                    st.success(f"✅ **{u['stroj']}** ({u['miesto']}) — **{u['kontrola']}** (Úspešne splnené)")
-                elif u["status"] == "cervena":
-                    st.error(f"🚨 **{u['stroj']}** ({u['miesto']}) — **{u['kontrola']}** (TERMÍN UPLYNUL / ZAMEŠKANÉ!)")
-                else:
-                    st.info(f"⏳ **{u['stroj']}** ({u['miesto']}) — **{u['kontrola']}** (Čaká na vykonanie)")
-        else:
-            st.success("Na tento deň nie sú naplánované žiadne revízie. Všetko je voľné! 🙌")
-            
-        if st.button("✖️ Zatvoriť detail dňa", key="close_dual_calendar_detail"):
-            st.session_state["zvoleny_den_duany"] = None
-            st.session_state["zvoleny_typ_mesiaca"] = None
-            st.rerun()
- 
+    for stroj in vsetky_stroje:
+        for stlpec, nazov_kontroly in definicia_kontrol.items():
+            if stroj.get(stlpec):
+                termin = date.fromisoformat(stroj[stlpec])
+                
+                # Sledujeme len tie termíny, ktoré sú staršie ako začiatok aktuálneho mesiaca
+                if termin < date(akt_rok, akt_mesiac, 1):
+                    nasli_sa_stare_resty = True
+                    dni_po = (dnes - termin).days
+                    stroj_id = stroj["id"]
+                    
+                    st.error(f"❌ **{stroj['nazov']}** ({stroj['umiestnenie']}) -> **{nazov_kontroly}** mala byť hotová do **{termin.strftime('%d.%m.%Y')}** (Mešká už {dni_po} dní!)")
+                    
+                    existujuca_poznamka = najdi_poznamku(stroj_id, stlpec)
+                    if existujuca_poznamka:
+                        st.info(f"ℹ️ **Dôvod zameškania:** {existujuca_poznamka}")
+                    
+                    with st.expander(f"📝 Upraviť poznámku k zdôvodneniu meškania"):
+                        with st.form(key=f"form_poznamka_{stroj_id}_{stlpec}"):
+                            nova_poznamka = st.text_area(
+                                "Dôvod (napr. Stroj v poruche, čaká sa na diel / dohodnutý termín):", 
+                                value=existujuca_poznamka if existujuca_poznamka else "",
+                                key=f"txt_{stroj_id}_{stlpec}"
+                            )
+                            tlacidlo_ulozit_p = st.form_submit_button("💾 Uložiť dôvod")
+                            
+                            if tlacidlo_ulozit_p:
+                                try:
+                                    upsert_data = {
+                                        "stroj_id": stroj_id,
+                                        "typ_kontroly": stlpec,
+                                        "text_poznamky": nova_poznamka
+                                    }
+                                    if existujuca_poznamka:
+                                        supabase.table("poznamky_restov").update({"text_poznamky": nova_poznamka}).eq("stroj_id", stroj_id).eq("typ_kontroly", stlpec).execute()
+                                    else:
+                                        supabase.table("poznamky_restov").insert(upsert_data).execute()
+                                    st.toast("Poznámka bola úspešne uložená! 📝")
+                                    st.rerun()
+                                except Exception as err:
+                                    st.error(f"Chyba pri ukladaní: {err}")
+                    st.write("")
+                    
+    if not nasli_sa_stare_resty:
+        st.success("Skvelé! Nemáte žiadne staré zameškané revízie z minulých mesiacov. 🎉")
  
 # ==========================================
 # ZÁLOŽKA 2: MESAČNÝ KALENDÁR

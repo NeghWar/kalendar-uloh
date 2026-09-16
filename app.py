@@ -674,7 +674,6 @@ with tab_zoznam:
                         st.markdown(f"- **Geometria žeriavovej dráhy:** {f_geom}", unsafe_allow_html=True)
                 
                 with col_akcia:
-                    st.write("") 
                     kliknute_upravit = st.button("✏️ Upraviť", key=f"edit_btn_{stroj_id}")
                     kliknute_zmazat = st.button("❌ Zmazať", key=f"zmaz_{stroj_id}")
                     
@@ -689,8 +688,9 @@ with tab_zoznam:
                 if kliknute_upravit:
                     st.session_state[f"editovanie_{stroj_id}"] = not st.session_state[f"editovanie_{stroj_id}"]
                     st.rerun()
-                            
-                       if st.session_state[f"editovanie_{stroj_id}"]:
+
+                # === 🛠️ REŽIM ÚPRAVY PRE STROJ 🛠️ ===
+                if st.session_state[f"editovanie_{stroj_id}"]:
                     st.info(f"🛠️ Režim úpravy pre stroj: **{stroj['nazov']}**")
                     
                     curr_rev = date.fromisoformat(stroj['posledna_revizia']) if stroj.get('posledna_revizia') else date.today()
@@ -724,6 +724,7 @@ with tab_zoznam:
                             st.markdown("**Podrobná prehliadka OK**")
                             has_pod_ok = st.checkbox("Evidovať dátum podrobnej pr.", value=bool(stroj.get('posledna_podrobna_prehliadka_ok')), key=f"has_pod_{stroj_id}")
                             new_pod_ok = st.date_input("Posledná Podrobná prehliadka OK (5r):", curr_pod_ok, key=f"inp_pod_{stroj_id}") if has_pod_ok else None
+                        
                         with e_col2:
                             st.markdown("**Úradná skúška**")
                             has_urad = st.checkbox("Evidovať dátum úradnej sk.", value=bool(stroj.get('posledna_uradna_skuska')), key=f"has_urad_{stroj_id}")
@@ -745,7 +746,7 @@ with tab_zoznam:
                                 "Interval Odbornej prehliadky:", 
                                 list_p_odbpr,
                                 index=p_odbpr_idx,
-                                format_func=lambda x: "3 roky" if x == 3.0 else ("2 roky" if x == 2.0 else ("1 rok (ročne)" if x == 1.0 else ("6 mesiacov (polročne)" if x == 0.5 else "3 mice (štvrťročne)"))),
+                                format_func=lambda x: "3 roky" if x == 3.0 else ("2 roky" if x == 2.0 else ("1 rok (ročne)" if x == 1.0 else ("6 mesiacov (polročne)" if x == 0.5 else "3 mesiace (štvrťročne)"))),
                                 key=f"sel_odbpr_{stroj_id}"
                             )
                             
@@ -806,4 +807,4 @@ with tab_zoznam:
                             except Exception as e:
                                 st.error(f"Nepodarilo sa uložiť zmeny: {e}")
                 st.markdown("---")
-                         
+                    

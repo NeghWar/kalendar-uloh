@@ -690,9 +690,7 @@ with tab_zoznam:
                     st.session_state[f"editovanie_{stroj_id}"] = not st.session_state[f"editovanie_{stroj_id}"]
                     st.rerun()
                             
-                # === 🛠️ REŽIM ÚPRAVY PRE STROJ 🛠️ ===
-                # === 🛠️ REŽIM ÚPRAVY PRE STROJ 🛠️ ===
-                if st.session_state[f"editovanie_{stroj_id}"]:
+                       if st.session_state[f"editovanie_{stroj_id}"]:
                     st.info(f"🛠️ Režim úpravy pre stroj: **{stroj['nazov']}**")
                     
                     curr_rev = date.fromisoformat(stroj['posledna_revizia']) if stroj.get('posledna_revizia') else date.today()
@@ -718,7 +716,6 @@ with tab_zoznam:
                             has_rev_sk = st.checkbox("Evidovať dátum rev. skúšky", value=bool(stroj.get('posledna_revizna_skuska')), key=f"has_revsk_{stroj_id}")
                             new_rev_sk = st.date_input("Posledná Revízna skúška:", curr_rev_sk, key=f"inp_revsk_{stroj_id}") if has_rev_sk else None
                             
-                            # Nové periódy pre revíznu skúšku (3, 2, 1)
                             list_p_rev = [3, 2, 1]
                             stroj_p_rev = stroj.get('perioda_reviznej_skusky', 2)
                             p_rev_idx = list_p_rev.index(stroj_p_rev) if stroj_p_rev in list_p_rev else 1
@@ -727,13 +724,11 @@ with tab_zoznam:
                             st.markdown("**Podrobná prehliadka OK**")
                             has_pod_ok = st.checkbox("Evidovať dátum podrobnej pr.", value=bool(stroj.get('posledna_podrobna_prehliadka_ok')), key=f"has_pod_{stroj_id}")
                             new_pod_ok = st.date_input("Posledná Podrobná prehliadka OK (5r):", curr_pod_ok, key=f"inp_pod_{stroj_id}") if has_pod_ok else None
-                        
                         with e_col2:
                             st.markdown("**Úradná skúška**")
                             has_urad = st.checkbox("Evidovať dátum úradnej sk.", value=bool(stroj.get('posledna_uradna_skuska')), key=f"has_urad_{stroj_id}")
                             new_urad = st.date_input("Posledná Úradná skúška:", curr_urad, key=f"inp_urad_{stroj_id}") if has_urad else None
                             
-                            # Nové periódy pre úradnú skúšku (10, 9, 6, 5, 4, 3)
                             list_p_urad = [10, 9, 6, 5, 4, 3]
                             stroj_p_urad = stroj.get('perioda_uradnej_skusky', 5)
                             p_urad_idx = list_p_urad.index(stroj_p_urad) if stroj_p_urad in list_p_urad else 3
@@ -743,15 +738,14 @@ with tab_zoznam:
                             has_odb_pr = st.checkbox("Evidovať dátum odbornej pr.", value=bool(stroj.get('posledna_odborna_prehliadka')), key=f"has_odbpr_{stroj_id}")
                             new_odb_pr = st.date_input("Posledná Odborná prehliadka:", curr_odb_pr, key=f"inp_odbpr_{stroj_id}") if has_odb_pr else None
                             
-                            # Nové intervaly pre odbornú prehliadku
                             list_p_odbpr = [3.0, 2.0, 1.0, 0.5, 0.25]
-                            stroj_p_odbpr = stroj.get('interval_odborna_pr', 1.0) # Ak stĺpec chýba, predvolíme 1.0
+                            stroj_p_odbpr = stroj.get('interval_odborna_pr', 1.0)
                             p_odbpr_idx = list_p_odbpr.index(stroj_p_odbpr) if stroj_p_odbpr in list_p_odbpr else 2
                             interval_odborna_pr = st.selectbox(
                                 "Interval Odbornej prehliadky:", 
                                 list_p_odbpr,
                                 index=p_odbpr_idx,
-                                format_func=lambda x: "3 roky" if x == 3.0 else ("2 roky" if x == 2.0 else ("1 rok (ročne)" if x == 1.0 else ("6 mesiacov (polročne)" if x == 0.5 else "3 mesiace (štvrťročne)"))),
+                                format_func=lambda x: "3 roky" if x == 3.0 else ("2 roky" if x == 2.0 else ("1 rok (ročne)" if x == 1.0 else ("6 mesiacov (polročne)" if x == 0.5 else "3 mice (štvrťročne)"))),
                                 key=f"sel_odbpr_{stroj_id}"
                             )
                             
@@ -759,9 +753,8 @@ with tab_zoznam:
                             has_odb_sk = st.checkbox("Evidovať dátum odbornej sk.", value=bool(stroj.get('posledna_odborna_skuska')), key=f"has_odbsk_{stroj_id}")
                             new_odb_sk = st.date_input("Posledná Odborná skúška:", curr_odb_sk, key=f"inp_odbsk_{stroj_id}") if has_odb_sk else None
                             
-                            # Nové periódy pre odbornú skúšku (6, 4, 3, 2, 1)
                             list_p_odbsk = [6, 4, 3, 2, 1]
-                            stroj_p_odbsk = stroj.get('perioda_odbornej_skusky', 1) # Ak stĺpec chýba, predvolíme 1
+                            stroj_p_odbsk = stroj.get('perioda_odbornej_skusky', 1)
                             p_odbsk_idx = list_p_odbsk.index(stroj_p_odbsk) if stroj_p_odbsk in list_p_odbsk else 4
                             new_p_odbsk = st.selectbox("Perióda Odbornej skúšky (roky):", list_p_odbsk, index=p_odbsk_idx, key=f"sel_odbsk_{stroj_id}")
                         
@@ -772,8 +765,8 @@ with tab_zoznam:
                             has_geom = st.checkbox("Evidovať dátum pre Geometriu", value=bool(stroj.get('posledna_geometria')), key=f"has_geom_{stroj_id}")
                             if not has_geom:
                                 new_geom = None
-                        
                         kliknute_ulozit = st.form_submit_button("💾 Uložiť zmeny stroja")
+                        
                         if kliknute_ulozit:
                             n_rev = vypocitaj_nasledujuci(new_rev, 1) if new_rev else None
                             n_rev_sk = vypocitaj_nasledujuci(new_rev_sk, int(new_p_rev)) if new_rev_sk else None
@@ -813,44 +806,4 @@ with tab_zoznam:
                             except Exception as e:
                                 st.error(f"Nepodarilo sa uložiť zmeny: {e}")
                 st.markdown("---")
-              
-                       
-                if kliknute_ulozit:
-                            n_rev = vypocitaj_nasledujuci(new_rev, 1) if new_rev else None
-                            n_rev_sk = vypocitaj_nasledujuci(new_rev_sk, int(new_p_rev)) if new_rev_sk else None
-                            n_pod_ok = vypocitaj_nasledujuci(new_pod_ok, 5) if new_pod_ok else None
-                            n_urad = vypocitaj_nasledujuci(new_urad, int(new_p_urad)) if new_urad else None
-                            n_odb_pr = vypocitaj_nasledujuci(new_odb_pr, 1) if new_odb_pr else None
-                            n_odb_sk = vypocitaj_nasledujuci(new_odb_sk, 1) if new_odb_sk else None
-                            n_geom = vypocitaj_nasledujuci(new_geom, 10) if (new_ma_geom and new_geom) else None
-                            
-                            pripravene_data = {
-                                "nazov": new_nazov, 
-                                "umiestnenie": new_umiestnenie,
-                                "posledna_revizia": new_rev.isoformat() if new_rev else None,
-                                "nasledujuca_revizia": n_rev.isoformat() if n_rev else None,
-                                "posledna_revizna_skuska": new_rev_sk.isoformat() if new_rev_sk else None,
-                                "perioda_reviznej_skusky": int(new_p_rev),
-                                "nasledujuca_revizna_skuska": n_rev_sk.isoformat() if n_rev_sk else None,
-                                "posledna_podrobna_prehliadka_ok": new_pod_ok.isoformat() if new_pod_ok else None,
-                                "nasledujuca_podrobna_prehliadka_ok": n_pod_ok.isoformat() if n_pod_ok else None,
-                                "posledna_uradna_skuska": new_urad.isoformat() if new_urad else None,
-                                "perioda_uradnej_skusky": int(new_p_urad),
-                                "nasledujuca_uradna_skuska": n_urad.isoformat() if n_urad else None,
-                                "posledna_odborna_prehliadka": new_odb_pr.isoformat() if new_odb_pr else None,
-                                "nasledujuca_odborna_prehliadka": n_odb_pr.isoformat() if n_odb_pr else None,
-                                "posledna_odborna_skuska": new_odb_sk.isoformat() if new_odb_sk else None,
-                                "nasledujuca_odborna_skuska": n_odb_sk.isoformat() if n_odb_sk else None,
-                                "vykonava_sa_geometria": new_ma_geom,
-                                "posledna_geometria": new_geom.isoformat() if (new_ma_geom and new_geom) else None,
-                                "nasledujuca_geometria": n_geom.isoformat() if (new_ma_geom and n_geom) else None,
-                            }
-                            
-                            try:
-                                supabase.table("stroje").update(pripravene_data).eq("id", stroj_id).execute()
-                                st.toast("Zmeny boli úspešne uložené! 💾")
-                                st.session_state[f"editovanie_{stroj_id}"] = False
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Nepodarilo sa uložiť zmeny: {e}")
-                st.markdown("---")
+                         

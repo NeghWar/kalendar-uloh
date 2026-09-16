@@ -1,5 +1,15 @@
 import streamlit as st
 from datetime import date, timedelta
+import pandas as pd
+import io
+
+# Skontrolujeme, či je nainštalované openpyxl pre Excel export
+try:
+    from openpyxl.styles import Font, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+except ImportError:
+    st.error("Chýba knižnica 'openpyxl'. Pridajte ji do requirements.txt")
+
 from supabase import create_client, Client
 
 # --- AUTOMATICKÉ NAČÍTANIE ZO SECRETS ---
@@ -64,11 +74,21 @@ tab_prehlad, tab_kalendar, tab_pridat, tab_zoznam = st.tabs([
 
 # NAČÍTANIE VŠETKÝCH DÁT PRE POTREBY STRÁNKY
 try:
-    odpoved = supabase.table("stroje").select("*").execute()
+    odpoved = supabase.table("stroje").select("*").order("nazov").execute()
     vsetky_stroje = odpoved.data
 except Exception as e:
     st.error(f"Chyba pri načítaní dát: {e}")
     vsetky_stroje = []
+
+definicia_kontrol = {
+    "nasledujuca_revizia": "Revízia (ročne)",
+    "nasledujuca_revizna_skuska": "Revízna skúška",
+    "nasledujuca_podrobna_prehliadka_ok": "Podrobná prehliadka OK (5-ročne)",
+    "nasledujuca_uradna_skuska": "Úradná skúška",
+    "nasledujuca_odborna_prehliadka": "Odborná prehliadka",
+    "nasledujuca_odborna_skuska": "Odborná skúška (ročne)",
+    "nasledujuca_geometria": "Geometrické zameranie dráhy (10 rokov)"
+}
 
 # ==========================================
 # ZÁLOŽKA 1: PREHĽAD A UPOZORNENIA
@@ -79,20 +99,10 @@ with tab_prehlad:
     dnes = date.today()
     hranica_upozornenia = dnes + timedelta(days=30)
     naslo_sa_upozornenie = False
-    
-    definicia_kontrol = {
-        "nasledujuca_revizia": "Revízia",
-        "nasledujuca_revizna_skuska": "Revízna skúška",
-        "nasledujuca_podrobna_prehliadka_ok": "Podrobná prehliadka OK",
-        "nasledujuca_uradna_skuska": "Úradná skúška",
-        "nasledujuca_odborna_prehliadka": "Odborná prehliadka",
-        "nasledujuca_odborna_skuska": "Odborná skúška",
-        "nasledujuca_geometria": "Geometrické zameranie dráhy"
-    }
 
     for stroj in vsetky_stroje:
         for stlpec, nazov_kontroly in definicia_kontrol.items():
-            if stroj[stlpec]:
+            if stroj.get(stlpec):
                 termin = date.fromisoformat(stroj[stlpec])
                 if dnes <= termin <= hranica_upozornenia:
                     naslo_sa_upozornenie = True
@@ -124,7 +134,7 @@ with tab_kalendar:
     
     for stroj in vsetky_stroje:
         for stlpec, nazov_kontroly in definicia_kontrol.items():
-            if stroj[stlpec]:
+            if stroj.get(stlpec):
                 termin = date.fromisoformat(stroj[stlpec])
                 if termin.year == izvoleny_rok and termin.month == izvoleny_mesiac_num:
                     nasli_sa_v_mesiaci = True
@@ -181,7 +191,8 @@ with tab_pridat:
         n_geometria = vypocitaj_nasledujuci(p_geometria, 10) if ma_geometriu else None
 
         novy_stroj_data = {
-            "nazov": nazov, "umiestnenie": umiestnenie,
+            "nazov": nazov, 
+            "umiestnenie": umiestnenie,
             "posledna_revizia": p_revizia.isoformat() if p_revizia else None,
             "nasledujuca_revizia": n_rev.isoformat() if n_rev else None,
             "posledna_revizna_skuska": p_revizna_sk.isoformat() if p_revizna_sk else None,
@@ -212,21 +223,29 @@ with tab_pridat:
 # ZÁLOŽKA 4: ZOZNAM STROJOV, ÚPRAVA A MAZANIE
 # ==========================================
 with tab_zoznam:
-        st.header("📋 Kompletný zoznam a úprava strojov")
+    st.header("📋 Kompletný zoznam a úprava strojov")
 
     # === 🟢 EXPORT DO EXCELU 🟢 ===
     if vsetky_stroje:
         df = pd.DataFrame(vsetky_stroje)
         stlpce_pre_excel = {
-            "nazov": "Názov stroja", "umiestnenie": "Umiestnenie",
-            "nasledujuca_revizia": "Ďalšia Revízia", "nasledujuca_revizna_skuska": "Ďalšia Revízna skúška",
+            "nazov": "Názov stroja", 
+            "umiestnenie": "Umiestnenie",
+            "nasledujuca_revizia": "Ďalšia Revízia", 
+            "nasledujuca_revizna_skuska": "Ďalšia Revízna skúška",
             "nasledujuca_podrobna_prehliadka_ok": "Ďalšia Podrobná prehliadka OK",
-            "nasledujuca_odborna_prehliadka": "Ďalšia Odborná prehliadka", "nasledujuca_odborna_skuska": "Ďalšia Odborná skúška",
-            "nasledujuca_uradna_skuska": "Ďalšia Úradná skúška", "nasledujuca_geometria": "Ďalšia Geometria dráhy"
+            "nasledujuca_odborna_prehliadka": "Ďalšia Odborná prehliadka", 
+            "nasledujuca_odborna_skuska": "Ďalšia Odborná skúška",
+            "nasledujuca_uradna_skuska": "Ďalšia Úradná skúška", 
+            "nasledujuca_geometria": "Ďalšia Geometria dráhy"
         }
         existujuce_stlpce = [st_col for st_col in stlpce_pre_excel.keys() if st_col in df.columns]
         df_export = df[existujuce_stlpce].rename(columns=stlpce_pre_excel)
-        stlpce_s_datumami = ["Ďalšia Revízia", "Ďalšia Revízna skúška", "Ďalšia Podrobná prehliadka OK", "Ďalšia Odborná prehliadka", "Ďalšia Odborná skúška", "Ďalšia Úradná skúška", "Ďalšia Geometria dráhy"]
+        stlpce_s_datumami = [
+            "Ďalšia Revízia", "Ďalšia Revízna skúška", "Ďalšia Podrobná prehliadka OK", 
+            "Ďalšia Odborná prehliadka", "Ďalšia Odborná skúška", "Ďalšia Úradná skúška", 
+            "Ďalšia Geometria dráhy"
+        ]
         
         for col in df_export.columns:
             if col in stlpce_s_datumami:
@@ -264,7 +283,7 @@ with tab_zoznam:
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
         st.markdown("---")
-        
+
     # === 📋 ZOBRAZENIE STROJOV V APLIKÁCII 📋 ===
     if not vsetky_stroje:
         st.info("V databáze nie sú žiadne stroje.")
@@ -334,7 +353,8 @@ with tab_zoznam:
                 if kliknute_upravit:
                     st.session_state[f"editovanie_{stroj_id}"] = not st.session_state[f"editovanie_{stroj_id}"]
                     st.rerun()
-                # === 🛠️ REŽIM ÚPRAWY PRE STROJ 🛠️ ===
+                            
+                # === 🛠️ REŽIM ÚPRAVY PRE STROJ 🛠️ ===
                 if st.session_state[f"editovanie_{stroj_id}"]:
                     st.info(f"🛠️ Režim úpravy pre stroj: **{stroj['nazov']}**")
                     

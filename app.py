@@ -438,7 +438,7 @@ with tab_pridat:
             st.markdown("**Úradná skúška**")
             p_uradna = st.date_input("Posledná Úradná skúška:", None, key="add_d_urad")
             perioda_uradnej = st.selectbox("Perióda Úradnej skúšky:", [10, 9, 6, 5, 4, 3], format_func=lambda x: f"{x} rokov", key="add_p_urad")
-            st.help("💡 **Pomôcka pre lehoty úradných skúšok:**\n\n• **UTZ:** platia termíny **9, 6, 5, 4, 3** rokov podľa typu zariadenia.\n• **VTZ:** platia termíny **10 alebo 6** rokov.")
+            st.info("💡 **Pomôcka pre lehoty úradných skúšok:**\n\n• **UTZ:** platia termíny **9, 6, 5, 4, 3** rokov podľa typu zariadenia.\n• **VTZ:** platia termíny **10 alebo 6** rokov.")
             
             st.markdown("**Odborná prehliadka**")
             p_odborna_pr = st.date_input("Posledná Odborná prehliadka:", None, key="add_d_odbpr")

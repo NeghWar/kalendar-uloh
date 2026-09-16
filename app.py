@@ -94,26 +94,116 @@ definicia_kontrol = {
 # ZÁLOŽKA 1: PREHĽAD A UPOZORNENIA
 # ==========================================
 with tab_prehlad:
-    st.header("🔔 Blížiace sa termíny revízií (Nasledujúcich 30 dní)")
+    st.header("🔔 Inteligentný prehľad a semafor revízií")
     
     dnes = date.today()
-    hranica_upozornenia = dnes + timedelta(days=30)
-    naslo_sa_upozornenie = False
+    # Automaticky zistíme aktuálny mesiac a rok
+    akt_mesiac = dnes.month
+    akt_rok = dnes.year
+    
+    # Výpočet pre nasledujúci mesiac
+    if akt_mesiac == 12:
+        nasl_mesiac = 1
+        nasl_rok = akt_rok + 1
+    else:
+        nasl_mesiac = akt_mesiac + 1
+        nasl_rok = akt_rok
 
+    # --- 🚨 SEKCIA 1: KRITICKÉ UPOZORNENIA Z MINULOSTI 🚨 ---
+    st.subheader("🚨 Kritické nedoplatky (Zameškané z minulých mesiacov)")
+    nasli_sa_stare_resty = False
+    
     for stroj in vsetky_stroje:
         for stlpec, nazov_kontroly in definicia_kontrol.items():
             if stroj.get(stlpec):
                 termin = date.fromisoformat(stroj[stlpec])
-                if dnes <= termin <= hranica_upozornenia:
-                    naslo_sa_upozornenie = True
-                    dni_do = (termin - dnes).days
-                    st.warning(f"⚠️ **{stroj['nazov']}** ({stroj['umiestnenie']}) -> **{nazov_kontroly}** vyprší dňa **{termin.strftime('%d.%m.%Y')}** (o {dni_do} dní!)")
-                elif termin < dnes:
-                    naslo_sa_upozornenie = True
-                    st.error(f"🚨 **{stroj['nazov']}** ({stroj['umiestnenie']}) -> **{nazov_kontroly}** je **PO TERMÍNE** od {termin.strftime('%d.%m.%Y')}!")
+                # Ak je termín starší ako tento mesiac a rok
+                if termin < date(akt_rok, akt_mesiac, 1):
+                    nasli_sa_stare_resty = True
+                    dni_po = (dnes - termin).days
+                    st.error(f"❌ **{stroj['nazov']}** ({stroj['umiestnenie']}) -> **{nazov_kontroly}** mala byť hotová do **{termin.strftime('%d.%m.%Y')}** (Mešká už {dni_po} dní!)")
+                    
+    if not nasli_sa_stare_resty:
+        st.success("Skvelé! Nemáte žiadne staré zameškané revízie z minulých mesiacov. 🎉")
+        
+    st.markdown("---")
+    
+    # --- 📅 SEKCIA 2: PLÁN NA AKTUÁLNY MESIAC (SEMAFOR) 📅 ---
+    mesiace_nazvy = ["Január", "Február", "Marec", "Apríl", "Máj", "Jún", "Júl", "August", "September", "Október", "November", "December"]
+    st.subheader(f"📅 Stav revízií na tento mesiac: {mesiace_nazvy[akt_mesiac - 1]} {akt_rok}")
+    
+    nasli_sa_tento_mesiac = False
+    
+    # Slovník, kde si namapujeme poslednú kontrolu k nasledujúcej kvôli kontrole splnenia
+    odpovedajuce_posledne = {
+        "nasledujuca_revizia": "posledna_revizia",
+        "nasledujuca_revizna_skuska": "posledna_revizna_skuska",
+        "nasledujuca_podrobna_prehliadka_ok": "posledna_podrobna_prehliadka_ok",
+        "nasledujuca_uradna_skuska": "posledna_uradna_skuska",
+        "nasledujuca_odborna_prehliadka": "posledna_odborna_prehliadka",
+        "nasledujuca_odborna_skuska": "posledna_odborna_skuska",
+        "nasledujuca_geometria": "posledna_geometria"
+    }
 
-    if not naslo_sa_upozornenie:
-        st.success("V najbližších 30 dňoch vás nečakajú žiadne naliehavé revízie. Všetko je v poriadku! ✅")
+    for stroj in vsetky_stroje:
+        for stlpec, nazov_kontroly in definicia_kontrol.items():
+            stala_sa_zmena = False
+            iso_termin = stroj.get(stlpec)
+            
+            if iso_termin:
+                termin = date.fromisoformat(iso_termin)
+                
+                # Zaujímajú nás len termíny, ktoré padnú do tohto mesiaca a roku
+                if termin.year == akt_rok and termin.month == akt_mesiac:
+                    nasli_sa_tento_mesiac = True
+                    pekny_datum = termin.strftime('%d.%m.%Y')
+                    
+                    # Kontrola, či už bola revízia splnená v tomto mesiaci
+                    stlpec_poslednej = odpovedajuce_posledne.get(stlpec)
+                    iso_posledna = stroj.get(stlpec_poslednej) if stlpec_poslednej else None
+                    
+                    bola_vykonana = False
+                    if iso_posledna:
+                        posledna_dt = date.fromisoformat(iso_posledna)
+                        if posledna_dt.year == akt_rok and posledna_dt.month == akt_mesiac:
+                            bola_vykonana = True
+
+                    # 1. ZELENÁ: Revízia bola v tomto mesiaci úspešne vykonaná
+                    if bola_vykonana:
+                        st.success(f"🟢 **{pekny_datum}** - **{stroj['nazov']}** ({stroj['umiestnenie']}) -> **{nazov_kontroly}** [VYKONANÉ ✅]")
+                    
+                    # 2. ČERVENÁ: Termín bol tento mesiac, ale už uplynul a nie je spravená
+                    elif termin < dnes:
+                        st.error(f"🔴 **{pekny_datum}** - **{stroj['nazov']}** ({stroj['umiestnenie']}) -> **{nazov_kontroly}** [TERMÍN UPLYNUL! 🚨]")
+                    
+                    # 3. ORANŽOVÁ: Termín je v tomto mesiaci, ešte neuplynul a čaká na vykonanie
+                    else:
+                        st.info(f"🟠 **{pekny_datum}** - **{stroj['nazov']}** ({stroj['umiestnenie']}) -> **{nazov_kontroly}** [ČAKÁ NA VYKONANIE ⏳]")
+
+    if not nasli_sa_tento_mesiac:
+        st.caption("Na tento mesiac nie sú naplánované žiadne revízie.")
+        
+    st.markdown("---")
+
+    # --- ⏭️ SEKCIA 3: NÁHĽAD VOPRED (NASLEDUJÚCI MESIAC) ⏭️ ---
+    st.subheader(f"⏭️ Čo vás čaká v budúcom mesiaci: {mesiace_nazvy[nasl_mesiac - 1]} {nasl_rok}")
+    nasli_sa_buduci_mesiac = False
+    
+    for stroj in vsetky_stroje:
+        for stlpec, nazov_kontroly in definicia_kontrol.items():
+            iso_termin = stroj.get(stlpec)
+            if iso_termin:
+                termin = date.fromisoformat(iso_termin)
+                
+                # Sledujeme len termíny, ktoré spadajú do budúceho mesiaca a roku
+                if termin.year == nasl_rok and termin.month == nasl_mesiac:
+                    nasli_sa_buduci_mesiac = True
+                    pekny_datum = termin.strftime('%d.%m.%Y')
+                    st.warning(f"📅 **{pekny_datum}** - **{stroj['nazov']}** ({stroj['umiestnenie']}) -> Bude potrebné vykonať: *{nazov_kontroly}*")
+                    
+    if not nasli_sa_buduci_mesiac:
+        st.caption("Na nasledujúci mesiac zatiaľ nie sú naplánované žiadne revízie.")
+
 
 # ==========================================
 # ZÁLOŽKA 2: MESAČNÝ KALENDÁR

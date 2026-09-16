@@ -171,65 +171,107 @@ with tab_prehlad:
         st.success("Skvelé! Nemáte žiadne staré zameškané revízie z minulých mesiacov. 🎉")
         
     st.markdown("---")
-                           
-
-    # --- 📅 SEKCIA 2: PLÁN NA AKTUÁLNY MESIAC (SEMAFOR) 📅 ---
+                          
+    # --- 📅 SEKCIA 2: INTERAKTÍVNY FAREBNÝ KALENDÁR (AKTUÁLNY MESIAC) 📅 ---
+    import calendar
     mesiace_nazvy = ["Január", "Február", "Marec", "Apríl", "Máj", "Jún", "Júl", "August", "September", "Október", "November", "December"]
-    st.subheader(f"📅 Stav revízií na tento mesiac: {mesiace_nazvy[akt_mesiac - 1]} {akt_rok}")
+    st.subheader(f"📅 Kalendár revízií na tento mesiac: {mesiace_nazvy[akt_mesiac - 1]} {akt_rok}")
     
-    nasli_sa_tento_mesiac = False
-    
-    # Slovník, kde si namapujeme poslednú kontrolu k nasledujúcej kvôli kontrole splnenia
+    # Príprava mapovania posledných kontrol k nasledujúcim
     odpovedajuce_posledne = {
-        "nasledujuca_revizia": "posledna_revizia",
-        "nasledujuca_revizna_skuska": "posledna_revizna_skuska",
-        "nasledujuca_podrobna_prehliadka_ok": "posledna_podrobna_prehliadka_ok",
-        "nasledujuca_uradna_skuska": "posledna_uradna_skuska",
-        "nasledujuca_odborna_prehliadka": "posledna_odborna_prehliadka",
-        "nasledujuca_odborna_skuska": "posledna_odborna_skuska",
+        "nasledujuca_revizia": "posledna_revizia", "nasledujuca_revizna_skuska": "posledna_revizna_skuska",
+        "nasledujuca_podrobna_prehliadka_ok": "posledna_podrobna_prehliadka_ok", "nasledujuca_uradna_skuska": "posledna_uradna_skuska",
+        "nasledujuca_odborna_prehliadka": "posledna_odborna_prehliadka", "nasledujuca_odborna_skuska": "posledna_odborna_skuska",
         "nasledujuca_geometria": "posledna_geometria"
     }
 
+    # Zozbierame všetky revízie, ktoré spadajú do aktuálneho mesiaca
+    udalosti_v_mesiacoch = {}
+    
     for stroj in vsetky_stroje:
         for stlpec, nazov_kontroly in definicia_kontrol.items():
-            stala_sa_zmena = False
             iso_termin = stroj.get(stlpec)
-            
             if iso_termin:
                 termin = date.fromisoformat(iso_termin)
-                
-                # Zaujímajú nás len termíny, ktoré padnú do tohto mesiaca a roku
                 if termin.year == akt_rok and termin.month == akt_mesiac:
-                    nasli_sa_tento_mesiac = True
-                    pekny_datum = termin.strftime('%d.%m.%Y')
+                    den = termin.day
+                    if den not in udalosti_v_mesiacoch:
+                        udalosti_v_mesiacoch[den] = []
                     
-                    # Kontrola, či už bola revízia splnená v tomto mesiaci
+                    # Kontrola splnenia (zelená)
                     stlpec_poslednej = odpovedajuce_posledne.get(stlpec)
                     iso_posledna = stroj.get(stlpec_poslednej) if stlpec_poslednej else None
-                    
                     bola_vykonana = False
                     if iso_posledna:
                         posledna_dt = date.fromisoformat(iso_posledna)
                         if posledna_dt.year == akt_rok and posledna_dt.month == akt_mesiac:
                             bola_vykonana = True
-
-                    # 1. ZELENÁ: Revízia bola v tomto mesiaci úspešne vykonaná
-                    if bola_vykonana:
-                        st.success(f"🟢 **{pekny_datum}** - **{stroj['nazov']}** ({stroj['umiestnenie']}) -> **{nazov_kontroly}** [VYKONANÉ ✅]")
                     
-                    # 2. ČERVENÁ: Termín bol tento mesiac, ale už uplynul a nie je spravená
-                    elif termin < dnes:
-                        st.error(f"🔴 **{pekny_datum}** - **{stroj['nazov']}** ({stroj['umiestnenie']}) -> **{nazov_kontroly}** [TERMÍN UPLYNUL! 🚨]")
-                    
-                    # 3. ORANŽOVÁ: Termín je v tomto mesiaci, ešte neuplynul a čaká na vykonanie
-                    else:
-                        st.info(f"🟠 **{pekny_datum}** - **{stroj['nazov']}** ({stroj['umiestnenie']}) -> **{nazov_kontroly}** [ČAKÁ NA VYKONANIE ⏳]")
+                    status = "zelena" if bola_vykonana else ("cervena" if termin < dnes else "oranzova")
+                    udalosti_v_mesiacoch[den].append({
+                        "stroj": stroj["nazov"], "miesto": stroj["umiestnenie"] or "Nezadané",
+                        "kontrola": nazov_kontroly, "status": status
+                    })
 
-    if not nasli_sa_tento_mesiac:
-        st.caption("Na tento mesiac nie sú naplánované žiadne revízie.")
+    # Vytvorenie kalendárovej mriežky (Pondelok - Nedeľa)
+    dni_v_tyzdni = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"]
+    st_cols_dni = st.columns(7)
+    for i, d_nazov in enumerate(dni_v_tyzdni):
+        st_cols_dni[i].markdown(f"<p style='text-align:center; font-weight:bold; margin-bottom:2px;'>{d_nazov}</p>", unsafe_allow_html=True)
+
+    # Získame štruktúru dní v mesiaci (nuly znamenajú prázdne dni pred/po mesiaci)
+    cal = calendar.Calendar(firstweekday=0)
+    tyzdne = cal.monthdayscalendar(akt_rok, akt_mesiac)
+    
+    if "zvoleny_den_kalendar" not in st.session_state:
+        st.session_state["zvoleny_den_kalendar"] = None
+
+    # Vykreslenie tlačidiel pre dni
+    for tyzden in tyzdne:
+        st_cols = st.columns(7)
+        for i, den in enumerate(tyzden):
+            if den == 0:
+                st_cols[i].write("") # Prázdne miesto pre dni mimo mesiac
+            else:
+                label_text = f"{den}"
+                # Určíme ikonu podľa najhoršieho statusu v daný deň (červená > oranžová > zelená)
+                if den in udalosti_v_mesiacoch:
+                    statusy_dna = [u["status"] for u in udalosti_v_mesiacoch[den]]
+                    if "cervena" in statusy_dna:
+                        label_text = f"{den} 🚨"
+                    elif "oranzova" in statusy_dna:
+                        label_text = f"{den} ⏳"
+                    elif "zelena" in statusy_dna:
+                        label_text = f"{den} ✅"
+                
+                # Kliknutie na deň uloží číslo dňa do session_state
+                if st_cols[i].button(label_text, key=f"cal_day_{den}", use_container_width=True):
+                    st.session_state["zvoleny_den_kalendar"] = den
+    # Vypísanie detailov pod kalendárom po kliknutí na tlačidlo dňa
+    zvoleny_den = st.session_state["zvoleny_den_kalendar"]
+    
+    if zvoleny_den:
+        st.markdown(f"### 🔍 Podrobnosti pre deň: **{zvoleny_den}.{akt_mesiac}.{akt_rok}**")
         
+        if zvoleny_den in udalosti_v_mesiacoch:
+            # Ak v daný deň máme nejaké revízie, vypíšeme ich formou vizuálnych kariet
+            for u in udalosti_v_mesiacoch[zvoleny_den]:
+                if u["status"] == "zelena":
+                    st.success(f"✅ **{u['stroj']}** ({u['miesto']}) — **{u['kontrola']}** (Úspešne splnené v tomto mesiaci)")
+                elif u["status"] == "cervena":
+                    st.error(f"🚨 **{u['stroj']}** ({u['miesto']}) — **{u['kontrola']}** (TERMÍN UPLYNUL A NEBOLO VYKONANÉ!)")
+                else:
+                    st.info(f"⏳ **{u['stroj']}** ({u['miesto']}) — **{u['kontrola']}** (Čaká na vykonanie)")
+        else:
+            st.success("Na tento deň nie sú naplánované žiadne revízie. Všetko je voľné!  ")
+            
+        # Tlačidlo na zatvorenie detailu a vyčistenie výberu
+        if st.button(" Zavrieť detail dňa", key="close_calendar_detail"):
+            st.session_state["zvoleny_den_kalendar"] = None
+            st.rerun()
+            
     st.markdown("---")
-
+   
     # --- ⏭️ SEKCIA 3: NÁHĽAD VOPRED (NASLEDUJÚCI MESIAC) ⏭️ ---
     st.subheader(f"⏭️ Čo vás čaká v budúcom mesiaci: {mesiace_nazvy[nasl_mesiac - 1]} {nasl_rok}")
     nasli_sa_buduci_mesiac = False

@@ -177,7 +177,6 @@ with tab_prehlad:
     mesiace_nazvy = ["Január", "Február", "Marec", "Apríl", "Máj", "Jún", "Júl", "August", "September", "Október", "November", "December"]
     st.subheader(f"📅 Kalendár revízií na tento mesiac: {mesiace_nazvy[akt_mesiac - 1]} {akt_rok}")
     
-    # Príprava mapovania posledných kontrol k nasledujúcim
     odpovedajuce_posledne = {
         "nasledujuca_revizia": "posledna_revizia", "nasledujuca_revizna_skuska": "posledna_revizna_skuska",
         "nasledujuca_podrobna_prehliadka_ok": "posledna_podrobna_prehliadka_ok", "nasledujuca_uradna_skuska": "posledna_uradna_skuska",
@@ -185,29 +184,37 @@ with tab_prehlad:
         "nasledujuca_geometria": "posledna_geometria"
     }
 
-    # Zozbierame všetky revízie, ktoré spadajú do aktuálneho mesiaca
     udalosti_v_mesiacoch = {}
     
     for stroj in vsetky_stroje:
-        for stlpec, nazov_kontroly in definicia_kontrol.items():
-            iso_termin = stroj.get(stlpec)
-            if iso_termin:
-                termin = date.fromisoformat(iso_termin)
-                if termin.year == akt_rok and termin.month == akt_mesiac:
-                    den = termin.day
+        for stlpec_nasl, nazov_kontroly in definicia_kontrol.items():
+            stlpec_posl = odpovedajuce_posledne.get(stlpec_nasl)
+            
+            iso_nasl = stroj.get(stlpec_nasl)
+            iso_posl = stroj.get(stlpec_posl) if stlpec_posl else None
+            
+            # 1. PRÍPAD: Revízia BOLA VYKONANÁ v tomto mesiaci (ZELENÁ)
+            if iso_posl:
+                posl_dt = date.fromisoformat(iso_posl)
+                if posl_dt.year == akt_rok and posl_dt.month == akt_mesiac:
+                    den = posl_dt.day
                     if den not in udalosti_v_mesiacoch:
                         udalosti_v_mesiacoch[den] = []
-                    
-                    # Kontrola splnenia (zelená)
-                    stlpec_poslednej = odpovedajuce_posledne.get(stlpec)
-                    iso_posledna = stroj.get(stlpec_poslednej) if stlpec_poslednej else None
-                    bola_vykonana = False
-                    if iso_posledna:
-                        posledna_dt = date.fromisoformat(iso_posledna)
-                        if posledna_dt.year == akt_rok and posledna_dt.month == akt_mesiac:
-                            bola_vykonana = True
-                    
-                    status = "zelena" if bola_vykonana else ("cervena" if termin < dnes else "oranzova")
+                    udalosti_v_mesiacoch[den].append({
+                        "stroj": stroj["nazov"], "miesto": stroj["umiestnenie"] or "Nezadané",
+                        "kontrola": nazov_kontroly, "status": "zelena"
+                    })
+                    continue # Ak bola spravená, ignorujeme plánovaný termín pre tento mesiac
+
+            # 2. PRÍPAD: Revízia JE NAPLÁNOVANÁ na tento mesiac (ORANŽOVÁ alebo ČERVENÁ)
+            if iso_nasl:
+                nasl_dt = date.fromisoformat(iso_nasl)
+                if nasl_dt.year == akt_rok and nasl_dt.month == akt_mesiac:
+                    den = nasl_dt.day
+                    if den not in udalosti_v_mesiacoch:
+                        udalosti_v_mesiacoch[den] = []
+                        
+                    status = "cervena" if nasl_dt < dnes else "oranzova"
                     udalosti_v_mesiacoch[den].append({
                         "stroj": stroj["nazov"], "miesto": stroj["umiestnenie"] or "Nezadané",
                         "kontrola": nazov_kontroly, "status": status
@@ -219,13 +226,12 @@ with tab_prehlad:
     for i, d_nazov in enumerate(dni_v_tyzdni):
         st_cols_dni[i].markdown(f"<p style='text-align:center; font-weight:bold; margin-bottom:2px;'>{d_nazov}</p>", unsafe_allow_html=True)
 
-    # Získame štruktúru dní v mesiaci (nuly znamenajú prázdne dni pred/po mesiaci)
     cal = calendar.Calendar(firstweekday=0)
     tyzdne = cal.monthdayscalendar(akt_rok, akt_mesiac)
     
     if "zvoleny_den_kalendar" not in st.session_state:
         st.session_state["zvoleny_den_kalendar"] = None
-
+   
     # Vykreslenie tlačidiel pre dni
     for tyzden in tyzdne:
         st_cols = st.columns(7)

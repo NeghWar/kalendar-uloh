@@ -234,12 +234,15 @@ with tab_prehlad:
     dni_v_tyzdni = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"]
     cal = calendar.Calendar(firstweekday=0)
 
+    # Pomocné premenné, aby sme vedeli, čo používateľ zaklikol
+    zvoleny_den = st.session_state.get("zvoleny_den_duany")
+    zvoleny_typ = st.session_state.get("zvoleny_typ_mesiaca")
+
     # === 🗓️ 1. STĹPEC: AKTUÁLNY MESIAC ===
     with col_kal1:
         with st.container(border=True):
             st.markdown(f"<h4 style='text-align:center; color:#1F4E78; margin-top:0;'>📅 {mesiace_nazvy[akt_mesiac - 1]} {akt_rok}</h4>", unsafe_allow_html=True)
             
-            # Hlavička dní v týždni
             st_cols_dni1 = st.columns(7)
             for i, d_nazov in enumerate(dni_v_tyzdni):
                 st_cols_dni1[i].markdown(f"<p style='text-align:center; font-weight:bold; margin-bottom:5px; color:#555;'>{d_nazov}</p>", unsafe_allow_html=True)
@@ -261,13 +264,34 @@ with tab_prehlad:
                         if st_cols[i].button(label_text, key=f"cal_akt_{den}", use_container_width=True):
                             st.session_state["zvoleny_den_duany"] = den
                             st.session_state["zvoleny_typ_mesiaca"] = "aktualny"
+                            st.rerun()
+
+            # --- VÝPIS DETAILU PRE AKTUÁLNY MESIAC ---
+            if zvoleny_den and zvoleny_typ == "aktualny":
+                st.markdown("---")
+                st.markdown(f"##### 🔍 Podrobnosti pre: **{zvoleny_den}. {mesiace_nazvy[akt_mesiac - 1]}**")
+                
+                if zvoleny_den in udalosti_aktualny:
+                    for u in udalosti_aktualny[zvoleny_den]:
+                        if u["status"] == "zelena":
+                            st.success(f"✅ **{u['stroj']}** — *{u['kontrola']}*")
+                        elif u["status"] == "cervena":
+                            st.error(f"🚨 **{u['stroj']}** — *{u['kontrola']}*")
+                        else:
+                            st.info(f"⏳ **{u['stroj']}** — *{u['kontrola']}*")
+                else:
+                    st.success("Žiadne plánované revízie. 👍")
+                
+                if st.button("✖️ Zatvoriť", key="close_detail_akt", use_container_width=True):
+                    st.session_state["zvoleny_den_duany"] = None
+                    st.session_state["zvoleny_typ_mesiaca"] = None
+                    st.rerun()
 
     # === 🗓️ 2. STĹPEC: BUDÚCI MESIAC ===
     with col_kal2:
         with st.container(border=True):
             st.markdown(f"<h4 style='text-align:center; color:#2E7D32; margin-top:0;'>⏭️ {mesiace_nazvy[nasl_mesiac - 1]} {nasl_rok}</h4>", unsafe_allow_html=True)
             
-            # Hlavička dní v týždni
             st_cols_dni2 = st.columns(7)
             for i, d_nazov in enumerate(dni_v_tyzdni):
                 st_cols_dni2[i].markdown(f"<p style='text-align:center; font-weight:bold; margin-bottom:5px; color:#555;'>{d_nazov}</p>", unsafe_allow_html=True)
@@ -289,9 +313,30 @@ with tab_prehlad:
                         if st_cols[i].button(label_text, key=f"cal_nasl_{den}", use_container_width=True):
                             st.session_state["zvoleny_den_duany"] = den
                             st.session_state["zvoleny_typ_mesiaca"] = "buduci"
+                            st.rerun()
 
-    st.markdown("---")
-   
+            # --- VÝPIS DETAILU PRE BUDÚCI MESIAC ---
+            if zvoleny_den and zvoleny_typ == "buduci":
+                st.markdown("---")
+                st.markdown(f"##### 🔍 Podrobnosti pre: **{zvoleny_den}. {mesiace_nazvy[nasl_mesiac - 1]}**")
+                
+                if zvoleny_den in udalosti_buduci:
+                    for u in udalosti_buduci[zvoleny_den]:
+                        if u["status"] == "zelena":
+                            st.success(f"✅ **{u['stroj']}** — *{u['kontrola']}*")
+                        elif u["status"] == "cervena":
+                            st.error(f"🚨 **{u['stroj']}** — *{u['kontrola']}*")
+                        else:
+                            st.info(f"⏳ **{u['stroj']}** — *{u['kontrola']}*")
+                else:
+                    st.success("Žiadne plánované revízie. 👍")
+                
+                if st.button("✖️ Zatvoriť", key="close_detail_nasl", use_container_width=True):
+                    st.session_state["zvoleny_den_duany"] = None
+                    st.session_state["zvoleny_typ_mesiaca"] = None
+                    st.rerun()
+  
+  
     # === 🔍 INTERAKTÍVNY VÝPIS DETAILOV POD KALENDÁRMI ===
     zvoleny_den = st.session_state["zvoleny_den_duany"]
     zvoleny_typ = st.session_state["zvoleny_typ_mesiaca"]

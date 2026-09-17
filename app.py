@@ -975,6 +975,7 @@ with tab_zoznam:
                     new_geom = st.date_input("Posledná Geometria dráhy:", db_geom, key=f"inp_geom_{stroj_id}") if new_ma_geom else None
                     clear_geom = st.checkbox("🗑️ Vymazať / Nechať nezaevidované", value=False, key=f"clear_geom_{stroj_id}") if new_ma_geom else False
 
+                    # === FINÁLNE UKLADANIE ZMIEN (ZROVNANÉ ODSADENIE) ===
                     if st.form_submit_button("💾 Uložiť zmeny stroja"):
                         final_rev = None if clear_rev else new_rev
                         n_rev = vypocitaj_nasledujuci(final_rev, 1)
@@ -997,6 +998,7 @@ with tab_zoznam:
                         final_geom = None if (clear_geom or not new_ma_geom) else new_geom
                         n_geom = vypocitaj_nasledujuci(final_geom, 10) if new_ma_geom else None
 
+                        # Zadefinovanie premennej
                         upravene_data = {
                             "nazov": new_nazov.strip(),
                             "umiestnenie": new_umiestnenie.strip() if new_umiestnenie else None,
@@ -1018,13 +1020,13 @@ with tab_zoznam:
                             "posledna_geometria": final_geom.isoformat() if final_geom else None,
                             "nasledujuca_geometria": n_geom.isoformat() if n_geom else None,
                         }
-                     
 
-            try:
-                supabase.table("stroje").update(upravene_data).eq("id", stroj_id).execute()
-                st.toast(f"Stroj '{new_nazov}' úspešne upravený! 💾")
-                st.session_state["aktualne_upravovany_id"] = None
-                st.rerun()
-            except Exception as e:
-                st.error(f"Chyba pri ukladaní zmien do databázy: {e}")
-        
+                        # Blok ukladania presne v rovnakej úrovni odsadenia ako upravene_data
+                        try:
+                            supabase.table("stroje").update(upravene_data).eq("id", stroj_id).execute()
+                            st.toast(f"Stroj '{new_nazov}' úspešne upravený! 💾")
+                            st.session_state["aktualne_upravovany_id"] = None
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Chyba pri ukladaní zmien do databázy: {e}")
+                   

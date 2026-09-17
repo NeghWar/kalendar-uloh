@@ -642,12 +642,7 @@ with tab_zoznam:
                 with col_nazov:
                     st.markdown(f"### {stroj['nazov']}")
                     
-                    # --- NOVÉ ÚDAJE POD NÁZVOM ---
-                    evidencne = stroj.get('evidencne_cislo') or "Nezadané"
-                    vybavenie = stroj.get('cislo_vybavenia') or "Nezadané"
-                    st.markdown(f"🆔 **Evid. č.:** `{evidencne}` | **Č. vybavenia:** `{vybavenie}`")
-                    
-                    # Legislatívne zaradenie (VTZ / UTZ)
+                    # 1. NAJVYŠŠIE: Zatriedenie podľa legislatívy (VTZ / UTZ)
                     druh_systemu = stroj.get('druh_systemu')
                     skupina = stroj.get('legislativna_skupina') or "-"
                     druh = stroj.get('legislativny_druh') or "-"
@@ -655,24 +650,33 @@ with tab_zoznam:
                     if druh_systemu in ["VTZ", "UTZ"]:
                         farba_stitku = "#1F4E78" if druh_systemu == "VTZ" else "#2E7D32"
                         st.markdown(f"""
-                        <div style='background-color: {farba_stitku}; color: white; padding: 4px 8px; border-radius: 4px; display: inline-block; font-size: 0.82em; font-weight: bold; margin-top: 4px;'>
+                        <div style='background-color: {farba_stitku}; color: white; padding: 4px 8px; border-radius: 4px; display: inline-block; font-size: 0.82em; font-weight: bold; margin-bottom: 8px;'>
                             {druh_systemu} • Skupina {skupina} • Druh {druh}
                         </div>
                         """, unsafe_allow_html=True)
                     else:
-                        st.markdown("<span style='color: #777; font-size: 0.85em; font-style: italic;'>⚠️ Bez legislatívneho zatriedenia</span>", unsafe_allow_html=True)
-
-                with col_miesto:
-                    st.markdown(f"📍 **Umiestnenie:**\n{stroj['umiestnenie'] or 'Nezadané'}")
+                        st.markdown("<div style='color: #777; font-size: 0.85em; font-style: italic; margin-bottom: 8px;'>⚠️ Bez legislatívneho zatriedenia</div>", unsafe_allow_html=True)
                     
-                    # --- NOVÉ ÚDAJE PRE FIRMU A VOJ (PRÍPRAVA PRE IMPORT) ---
-                    firma = stroj.get('firma') or "Nezadaná"
-                    voj = stroj.get('voj') or "Nezadané" # Výrobno-operačná jednotka / stredisko
+                    # 2. POD TÝM: Evidenčné čísla usporiadané pod sebou
+                    evidencne = stroj.get('evidencne_cislo') or "Nezadané"
+                    vybavenie = stroj.get('cislo_vybavenia') or "Nezadané"
                     
                     st.markdown(f"""
-                    🏢 **Firma:** {firma}
+                    🆔 **Evid. č.:** `{evidencne}`  
+                    🛠️ **Č. vybavenia:** `{vybavenie}`
+                    """, unsafe_allow_html=True)
+
+                with col_miesto:
+                    # 3. V DRUHOM STĹPCI: Lokalita, Firma a pod ňou VOJ
+                    firma = stroj.get('firma') or "Nezadaná"
+                    voj = stroj.get('voj') or "Nezadané"
+                    
+                    st.markdown(f"""
+                    📍 **Umiestnenie:** {stroj['umiestnenie'] or 'Nezadané'}  
+                    🏢 **Firma:** {firma}  
                     🏭 **VOJ:** `{voj}`
                     """, unsafe_allow_html=True)
+               
                 
                 with col_revizie:
                     st.markdown("**📅 Nasledujúce termíny kontrol:**")

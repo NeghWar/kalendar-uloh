@@ -563,13 +563,13 @@ with tab_zoznam:
     # Príprava dvoch stĺpcov pre Export a Import vedľa seba
     col_exp, col_imp = st.columns(2)
 
-    # === 🟢 SEKCIA 1: AKTUALIZOVANÝ EXPORT DO EXCELU 🟢 ===
+    # === 🟢 SEKCIA 1: AKTUALIZOVANÝ EXPORT DO EXCELU (OPRAVENÝ) 🟢 ===
     with col_exp:
         st.subheader("📤 Export dát")
         if vsetky_stroje:
             df = pd.DataFrame(vsetky_stroje)
             
-            # Pridané nové kolonky do mapovania pre Excel
+            # Kompletné mapovanie všetkých stĺpcov, ktoré CHCEME mať v Exceli
             stlpce_pre_excel = {
                 "nazov": "Názov stroja", 
                 "druh_systemu": "Druh systému (VTZ/UTZ)",
@@ -589,8 +589,13 @@ with tab_zoznam:
                 "nasledujuca_geometria": "Ďalšia Geometria dráhy"
             }
             
-            existujuce_stlpce = [st_col for st_col in stlpce_pre_excel.keys() if st_col in df.columns]
-            df_export = df[existujuce_stlpce].rename(columns=stlpce_pre_excel)
+            # POISTKA: Ak stĺpec v DataFrame chýba (lebo nie je v DB), vytvoríme ho ako prázdny
+            for db_col in stlpce_pre_excel.keys():
+                if db_col not in df.columns:
+                    df[db_col] = None
+            
+            # Teraz môžeme bezpečne vybrať a premenovať všetky stĺpce v presnom poradí
+            df_export = df[list(stlpce_pre_excel.keys())].rename(columns=stlpce_pre_excel)
             
             stlpce_s_datumami = [
                 "Ďalšia Revízia", "Ďalšia Revízna skúška", "Ďalšia Podrobná prehliadka OK", 
@@ -601,7 +606,9 @@ with tab_zoznam:
             for col in df_export.columns:
                 if col in stlpce_s_datumami:
                     df_export[col] = pd.to_datetime(df_export[col], errors='coerce').dt.strftime('%d.%m.%Y')
-            df_export = df_export.fillna("nevykonáva sa")
+            
+            # Vyplníme prázdne textové hodnoty zrozumiteľným textom
+            df_export = df_export.fillna("Nezadané")
 
             buffer = io.BytesIO()
             with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
@@ -622,7 +629,7 @@ with tab_zoznam:
 
                 for col in worksheet.columns:
                     max_len = max(len(str(cell.value or '')) for cell in col)
-                    col_letter = get_column_letter(col[0].column)
+                    col_letter = get_column_letter(col[0].column) # Použitá oprava pre index prvej bunky
                     worksheet.column_dimensions[col_letter].width = max(max_len + 3, 12)
                     for cell in col:
                         if cell.row > 1:
@@ -637,6 +644,7 @@ with tab_zoznam:
             )
         else:
             st.caption("Nie sú dáta na export.")
+    
 
     # === 🔵 SEKCIA 2: NOVÝ INTELIGENTNÝ IMPORT Z EXCELU 🔵 ===
     with col_imp:

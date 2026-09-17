@@ -664,6 +664,15 @@ with tab_zoznam:
 
                 with col_miesto:
                     st.markdown(f"📍 **Umiestnenie:**\n{stroj['umiestnenie'] or 'Nezadané'}")
+                    
+                    # --- NOVÉ ÚDAJE PRE FIRMU A VOJ (PRÍPRAVA PRE IMPORT) ---
+                    firma = stroj.get('firma') or "Nezadaná"
+                    voj = stroj.get('voj') or "Nezadané" # Výrobno-operačná jednotka / stredisko
+                    
+                    st.markdown(f"""
+                    🏢 **Firma:** {firma}
+                    🏭 **VOJ:** `{voj}`
+                    """, unsafe_allow_html=True)
                 
                 with col_revizie:
                     st.markdown("**📅 Nasledujúce termíny kontrol:**")

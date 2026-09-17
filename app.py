@@ -707,6 +707,54 @@ with tab_zoznam:
                         existujuce_db_stlpce = {"id", "nazov", "umiestnenie"}
                     
                     uspesne_importovane = 0
+                    
+                    # === 🔵 SEKCIA 2: OPRAVENÝ IMPORT (2. ČASŤ: CYKLUS A ZÁPIS DO DB) ===
+                    for _, row in df_import.iterrows():
+                        nazov_st = row.get("Názov stroja")
+                        if pd.isna(nazov_st) or str(nazov_st).strip() == "":
+                            continue
+                            
+                        stroj_data = {}
+                        for excel_col, db_col in mapovanie_na_db.items():
+                            if excel_col in df_import.columns:
+                                val = row[excel_col]
+                                
+                                # 1. Ak ide o dátumový stĺpec, konvertujeme na ISO formát
+                                if db_col.startswith("nasledujuca_"):
+                                    stroj_data[db_col] = konvertuj_na_iso_datum(val)
+                                
+                                # 2. Ak ide o čísla (vybavenie, evidencia), očistíme ich od .0
+                                elif db_col in ["cislo_vybavenia", "evidencne_cislo"]:
+                                    stroj_data[db_col] = ocisti_float_cislo(val)
+                                
+                                # 3. Ostatné textové stĺpce
+                                else:
+                                    stroj_data[db_col] = None if pd.isna(val) or str(val).strip() in ["nevykonáva sa", "Nezadané", "Nezadaná"] else str(val).strip()
+
+                        # Zapnutie prepínača pre geometriu podľa dátumu
+                        if "nasledujuca_geometria" in stroj_data and stroj_data["nasledujuca_geometria"] is not None:
+                            stroj_data["vykonava_sa_geometria"] = True
+
+                        # Kontrola duplicity podľa názvu stroja
+                        existuje_id = None
+                        for s in vsetky_stroje:
+                            if s["nazov"].strip().lower() == str(nazov_st).strip().lower():
+                                existuje_id = s["id"]
+                                break
+                        
+                        # Zápis do databázy (Update / Insert)
+                        if existuje_id:
+                            supabase.table("stroje").update(stroj_data).eq("id", existuje_id).execute()
+                        else:
+                            supabase.table("stroje").insert(stroj_data).execute()
+                            
+                        uspesne_importovane += 1
+                    
+                    st.success(f"🎉 Import dokončený! Čísla ošetrené, dátumy zapísané. Riadkov: {uspesne_importovane}")
+                    st.rerun()
+                    
+                except Exception as ex:
+                    st.error(f"Chyba pri spracovaní Excel súboru: {ex}")
 
                     
                     for _, row in df_import.iterrows():

@@ -731,16 +731,15 @@ with tab_zoznam:
                 with col_nazov:
                     st.markdown(f"### {stroj['nazov']}")
                     
-                    # 1. NAJVYŠŠIE: Prečistené a väčšie zatriedenie podľa legislatívy (VTZ / UTZ)
+                    # 1. NAJVYŠŠIE: Čisté a väčšie zatriedenie podľa legislatívy (VTZ / UTZ)
                     druh_systemu = stroj.get('druh_systemu')
                     skupina = stroj.get('legislativna_skupina') or "-"
                     druh = stroj.get('legislativny_druh') or "-"
                     
                     if druh_systemu in ["VTZ", "UTZ"]:
-                        # Dynamická farba: VTZ = modrá (#1F4E78), UTZ = zelená (#2E7D32)
+                        # Dynamická farba: VTZ = modrá, UTZ = zelená
                         farba_stitku = "#1F4E78" if druh_systemu == "VTZ" else "#2E7D32"
                         
-                        # Zobrazí iba čisté hodnoty (napr. VTZ • A • b) vo väčšom fonte (font-size: 0.95em)
                         st.markdown(f"""
                         <div style='background-color: {farba_stitku}; color: white; padding: 5px 12px; border-radius: 4px; display: inline-block; font-size: 0.95em; font-weight: bold; margin-bottom: 10px;'>
                             {druh_systemu} • {skupina} • {druh}
@@ -749,42 +748,33 @@ with tab_zoznam:
                     else:
                         st.markdown("<div style='color: #777; font-size: 0.9em; font-style: italic; margin-bottom: 10px;'>⚠️ Bez legislatívneho zatriedenia</div>", unsafe_allow_html=True)
                     
-                    # 2. POD TÝM: Evidenčné čísla s o niečo väčším písmom a zjednoteným štýlom
+                    # 2. POD TÝM: Evidenčné čísla v čistom texte (bez zeleného kódu)
                     evidencne = stroj.get('evidencne_cislo') or "Nezadané"
                     vybavenie = stroj.get('cislo_vybavenia') or "Nezadané"
                     
                     st.markdown(f"""
-                    <div style='font-size: 1.1em; line-height: 1.6;'>
-                        🆔 <b>Evid. č.:</b> <code>{evidencne}</code><br>
-                        🛠️ <b>Č. vybavenia:</b> <code>{vybavenie}</code>
+                    <div style='font-size: 1.1em; line-height: 1.6; color: #31333F;'>
+                        🆔 <b>Evid. č.:</b> {evidencne}<br>
+                        🛠️ <b>Č. vybavenia:</b> {vybavenie}
                     </div>
                     """, unsafe_allow_html=True)
 
                 with col_miesto:
-                    # 3. V DRUHOM STĹPCI: Lokalita, Firma a VOJ s rovnakým štýlom kódu (zelený text code nahradený čistým textom)
+                    # 3. V DRUHOM STĹPCI: Umiestnenie, Firma a VOJ (všetko v jednom bloku, bez duplicít a zeleného textu)
                     firma = stroj.get('firma') or "Nezadaná"
                     voj = stroj.get('voj') or "Nezadané"
+                    umiestnenie_text = stroj.get('umiestnenie') or "Nezadané"
                     
                     st.markdown(f"""
-                    <div style='font-size: 1.1em; line-height: 1.6;'>
-                        📍 <b>Umiestnenie:</b> {stroj['umiestnenie'] or 'Nezadané'}<br>
+                    <div style='font-size: 1.1em; line-height: 1.6; color: #31333F;'>
+                        📍 <b>Umiestnenie:</b> {umiestnenie_text}<br>
                         🏢 <b>Firma:</b> {firma}<br>
                         🏭 <b>VOJ:</b> {voj}
                     </div>
                     """, unsafe_allow_html=True)
-                
-                with col_miesto:
-                    # 3. V DRUHOM STĹPCI: Lokalita, Firma a pod ňou VOJ
-                    firma = stroj.get('firma') or "Nezadaná"
-                    voj = stroj.get('voj') or "Nezadané"
-                    
-                    st.markdown(f"""
-                    📍 **Umiestnenie:** {stroj['umiestnenie'] or 'Nezadané'}  
-                    🏢 **Firma:** {firma}  
-                    🏭 **VOJ:** `{voj}`
-                    """, unsafe_allow_html=True)
                
-                
+            
+              
                 with col_revizie:
                     st.markdown("**📅 Nasledujúce termíny kontrol:**")
                     

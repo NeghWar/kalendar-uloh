@@ -622,7 +622,7 @@ with tab_zoznam:
 
                 for col in worksheet.columns:
                     max_len = max(len(str(cell.value or '')) for cell in col)
-                    col_letter = get_column_letter(col.column)
+                    col_letter = get_column_letter(col[0].column)
                     worksheet.column_dimensions[col_letter].width = max(max_len + 3, 12)
                     for cell in col:
                         if cell.row > 1:

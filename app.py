@@ -558,72 +558,149 @@ with tab_pridat:
 # ZÁLOŽKA 4: ZOZNAM STROJOV, ÚPRAVA A MAZANIE
 # ==========================================
 with tab_zoznam:
-    st.header("📋 Kompletný zoznam a úprava strojov")
+    st.header("📋 Kompletný zoznam, export a import strojov")
 
-    # === 🟢 EXPORT DO EXCELU 🟢 ===
-    if vsetky_stroje:
-        df = pd.DataFrame(vsetky_stroje)
-        stlpce_pre_excel = {
-            "nazov": "Názov stroja", 
-            "umiestnenie": "Umiestnenie",
-            "evidencne_cislo": "Evidenčné číslo",
-            "cislo_vybavenia": "Číslo vybavenia",
-            "druh_systemu": "Druh systému (VTZ/UTZ)",
-            "legislativna_skupina": "Legislatívna skupina",
-            "legislativny_druh": "Legislatívny druh",
-            "nasledujuca_revizia": "Ďalšia Revízia", 
-            "nasledujuca_revizna_skuska": "Ďalšia Revízna skúška",
-            "nasledujuca_podrobna_prehliadka_ok": "Ďalšia Podrobná prehliadka OK",
-            "nasledujuca_odborna_prehliadka": "Ďalšia Odborná prehliadka", 
-            "nasledujuca_odborna_skuska": "Ďalšia Odborná skúška",
-            "nasledujuca_uradna_skuska": "Ďalšia Úradná skúška", 
-            "nasledujuca_geometria": "Ďalšia Geometria dráhy"
-        }
-        existujuce_stlpce = [st_col for st_col in stlpce_pre_excel.keys() if st_col in df.columns]
-        df_export = df[existujuce_stlpce].rename(columns=stlpce_pre_excel)
-        stlpce_s_datumami = [
-            "Ďalšia Revízia", "Ďalšia Revízna skúška", "Ďalšia Podrobná prehliadka OK", 
-            "Ďalšia Odborná prehliadka", "Ďalšia Odborná skúška", "Ďalšia Úradná skúška", 
-            "Ďalšia Geometria dráhy"
-        ]
-        
-        for col in df_export.columns:
-            if col in stlpce_s_datumami and col in df_export.columns:
-                df_export[col] = pd.to_datetime(df_export[col], errors='coerce').dt.strftime('%d.%m.%Y')
-        df_export = df_export.fillna("nevykonáva sa")
+    # Príprava dvoch stĺpcov pre Export a Import vedľa seba
+    col_exp, col_imp = st.columns(2)
 
-        buffer = io.BytesIO()
-        with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
-            df_export.to_excel(writer, index=False, sheet_name='Revízie Strojov')
-            workbook = writer.book
-            worksheet = writer.sheets['Revízie Strojov']
-            hlavicka_font = Font(name='Arial', size=11, bold=True, color='FFFFFF')
-            hlavicka_fill = PatternFill(start_color='1F4E78', end_color='1F4E78', fill_type='solid')
-            tenka_ciara = Side(border_style="thin", color="D9D9D9")
-            mriezka = Border(left=tenka_ciara, right=tenka_ciara, top=tenka_ciara, bottom=tenka_ciara)
+    # === 🟢 SEKCIA 1: AKTUALIZOVANÝ EXPORT DO EXCELU 🟢 ===
+    with col_exp:
+        st.subheader("📤 Export dát")
+        if vsetky_stroje:
+            df = pd.DataFrame(vsetky_stroje)
             
-            for row in worksheet.iter_rows(min_row=1, max_row=1, min_col=1, max_col=worksheet.max_column):
-                for cell in row:
-                    cell.font = hlavicka_font
-                    cell.fill = hlavicka_fill
-                    cell.border = mriezka
-            worksheet.freeze_panes = 'A2'
+            # Pridané nové kolonky do mapovania pre Excel
+            stlpce_pre_excel = {
+                "nazov": "Názov stroja", 
+                "druh_systemu": "Druh systému (VTZ/UTZ)",
+                "legislativna_skupina": "Legislatívna skupina",
+                "legislativny_druh": "Legislatívny druh",
+                "evidencne_cislo": "Evidenčné číslo",
+                "cislo_vybavenia": "Číslo vybavenia",
+                "umiestnenie": "Umiestnenie",
+                "firma": "Firma",
+                "voj": "VOJ",
+                "nasledujuca_revizia": "Ďalšia Revízia", 
+                "nasledujuca_revizna_skuska": "Ďalšia Revízna skúška",
+                "nasledujuca_podrobna_prehliadka_ok": "Ďalšia Podrobná prehliadka OK",
+                "nasledujuca_odborna_prehliadka": "Ďalšia Odborná prehliadka", 
+                "nasledujuca_odborna_skuska": "Ďalšia Odborná skúška",
+                "nasledujuca_uradna_skuska": "Ďalšia Úradná skúška", 
+                "nasledujuca_geometria": "Ďalšia Geometria dráhy"
+            }
+            
+            existujuce_stlpce = [st_col for st_col in stlpce_pre_excel.keys() if st_col in df.columns]
+            df_export = df[existujuce_stlpce].rename(columns=stlpce_pre_excel)
+            
+            stlpce_s_datumami = [
+                "Ďalšia Revízia", "Ďalšia Revízna skúška", "Ďalšia Podrobná prehliadka OK", 
+                "Ďalšia Odborná prehliadka", "Ďalšia Odborná skúška", "Ďalšia Úradná skúška", 
+                "Ďalšia Geometria dráhy"
+            ]
+            
+            for col in df_export.columns:
+                if col in stlpce_s_datumami:
+                    df_export[col] = pd.to_datetime(df_export[col], errors='coerce').dt.strftime('%d.%m.%Y')
+            df_export = df_export.fillna("nevykonáva sa")
 
-            for col in worksheet.columns:
-                max_len = max(len(str(cell.value or '')) for cell in col)
-                col_letter = get_column_letter(col[0].column)
-                worksheet.column_dimensions[col_letter].width = max(max_len + 3, 12)
-                for cell in col:
-                    if cell.row > 1:
+            buffer = io.BytesIO()
+            with pd.ExcelWriter(buffer, engine='openpyxl') as writer:
+                df_export.to_excel(writer, index=False, sheet_name='Revízie Strojov')
+                workbook = writer.book
+                worksheet = writer.sheets['Revízie Strojov']
+                hlavicka_font = Font(name='Arial', size=11, bold=True, color='FFFFFF')
+                hlavicka_fill = PatternFill(start_color='1F4E78', end_color='1F4E78', fill_type='solid')
+                tenka_ciara = Side(border_style="thin", color="D9D9D9")
+                mriezka = Border(left=tenka_ciara, right=tenka_ciara, top=tenka_ciara, bottom=tenka_ciara)
+                
+                for row in worksheet.iter_rows(min_row=1, max_row=1, min_col=1, max_col=worksheet.max_column):
+                    for cell in row:
+                        cell.font = hlavicka_font
+                        cell.fill = hlavicka_fill
                         cell.border = mriezka
+                worksheet.freeze_panes = 'A2'
+
+                for col in worksheet.columns:
+                    max_len = max(len(str(cell.value or '')) for cell in col)
+                    col_letter = get_column_letter(col.column)
+                    worksheet.column_dimensions[col_letter].width = max(max_len + 3, 12)
+                    for cell in col:
+                        if cell.row > 1:
+                            cell.border = mriezka
+            
+            st.download_button(
+                label="🟢 Stiahnuť Excel (.xlsx)",
+                data=buffer.getvalue(),
+                file_name=f"revizie_strojov_{date.today().strftime('%d_%m_%Y')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True
+            )
+        else:
+            st.caption("Nie sú dáta na export.")
+
+    # === 🔵 SEKCIA 2: NOVÝ INTELIGENTNÝ IMPORT Z EXCELU 🔵 ===
+    with col_imp:
+        st.subheader("📥 Import dát")
+        nahraty_subor = st.file_uploader("Nahrajte vyplnený Excel súbor (.xlsx):", type=["xlsx"])
         
-        st.download_button(
-            label="🟢 Stiahnuť profesionálny Excel (.xlsx)",
-            data=buffer.getvalue(),
-            file_name=f"revizie_strojov_{date.today().strftime('%d_%m_%Y')}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        st.markdown("---")
+        if nahraty_subor is not None:
+            if st.button("🚀 Spustiť import do databázy", use_container_width=True):
+                try:
+                    # Načítanie hárku
+                    df_import = pd.read_excel(nahraty_subor)
+                    
+                    # Opačné mapovanie z Excel názvov na Supabase stĺpce
+                    mapovanie_na_db = {
+                        "Názov stroja": "nazov",
+                        "Druh systému (VTZ/UTZ)": "druh_systemu",
+                        "Legislatívna skupina": "legislativna_skupina",
+                        "Legislatívny druh": "legislativny_druh",
+                        "Evidenčné číslo": "evidencne_cislo",
+                        "Číslo vybavenia": "cislo_vybavenia",
+                        "Umiestnenie": "umiestnenie",
+                        "Firma": "firma",
+                        "VOJ": "voj"
+                    }
+                    
+                    pripravene_riadky = []
+                    uspesne_importovane = 0
+                    
+                    for _, row in df_import.iterrows():
+                        # Názov stroja je povinný, ak chýba, riadok preskočíme
+                        nazov_st = row.get("Názov stroja")
+                        if pd.isna(nazov_st) or str(nazov_st).strip() == "":
+                            continue
+                            
+                        stroj_data = {}
+                        # Mapujeme textové stĺpce
+                        for excel_col, db_col in mapovanie_na_db.items():
+                            if excel_col in df_import.columns:
+                                val = row[excel_col]
+                                stroj_data[db_col] = None if pd.isna(val) or str(val).strip() in ["nevykonáva sa", "Nezadané", "Nezadaná"] else str(val).strip()
+                        
+                        # Kontrola, či stroj už existuje (podľa názvu)
+                        existuje_id = None
+                        for s in vsetky_stroje:
+                            if s["nazov"].strip().lower() == str(nazov_st).strip().lower():
+                                existuje_id = s["id"]
+                                break
+                        
+                        if existuje_id:
+                            # Aktualizácia existujúceho stroja
+                            supabase.table("stroje").update(stroj_data).eq("id", existuje_id).execute()
+                        else:
+                            # Zápis nového stroja
+                            supabase.table("stroje").insert(stroj_data).execute()
+                            
+                        uspesne_importovane += 1
+                    
+                    st.success(f"🎉 Import prebehol úspešne! Spracovaných riadkov: {uspesne_importovane}")
+                    st.rerun()
+                    
+                except Exception as ex:
+                    st.error(f"Chyba pri spracovaní Excel súboru: {ex}")
+
+    st.markdown("---")
 
     # === 📋 ZOBRAZENIE STROJOV V APLIKÁCII 📋 ===
     if not vsetky_stroje:

@@ -645,8 +645,7 @@ with tab_zoznam:
         else:
             st.caption("Nie sú dáta na export.")
     
-
-    # === 🔵 SEKCIA 2: NOVÝ INTELIGENTNÝ IMPORT Z EXCELU (BEZPEČNÝ PROTI CHYBÁM DB) 🔵 ===
+    # === 🔵 SEKCIA 2: OPRAVENÝ INTELIGENTNÝ IMPORT Z EXCELU 🔵 ===
     with col_imp:
         st.subheader("📥 Import dát")
         nahraty_subor = st.file_uploader("Nahrajte vyplnený Excel súbor (.xlsx):", type=["xlsx"])
@@ -657,7 +656,7 @@ with tab_zoznam:
                     # Načítanie hárku
                     df_import = pd.read_excel(nahraty_subor)
                     
-                    # Mapa z Excel názvov na názvy stĺpcov, ktoré očakávame
+                    # Mapa z Excel názvov na názvy stĺpcov v databáze
                     mapovanie_na_db = {
                         "Názov stroja": "nazov",
                         "Druh systému (VTZ/UTZ)": "druh_systemu",
@@ -670,9 +669,11 @@ with tab_zoznam:
                         "VOJ": "voj"
                     }
 
-                    # ZISTÍME, AKÉ STĹPCE MÁME REÁLNE V DATABÁZE (Zo vzorky dát vsetky_stroje)
-                    # Ak je databáza prázdna, povolíme iba základné stĺpce, ktoré tam určite sú
-                    existujuce_db_stlpce = set(vsetky_stroje[0].keys()) if vsetky_stroje else {"id", "nazov", "umiestnenie"}
+                    # OPRAVA: Správne zistenie existujúcich stĺpcov z prvého riadku v databáze
+                    if vsetky_stroje and len(vsetky_stroje) > 0:
+                        existujuce_db_stlpce = set(vsetky_stroje[0].keys())
+                    else:
+                        existujuce_db_stlpce = {"id", "nazov", "umiestnenie"}
                     
                     uspesne_importovane = 0
                     
@@ -684,7 +685,7 @@ with tab_zoznam:
                         stroj_data = {}
                         for excel_col, db_col in mapovanie_na_db.items():
                             if excel_col in df_import.columns:
-                                # POISTKA: Do zápisu pridáme stĺpec IBA vtedy, ak reálne existuje v Supabase tabuľke
+                                # Posielame do DB iba to, čo v nej reálne existuje
                                 if db_col in existujuce_db_stlpce:
                                     val = row[excel_col]
                                     stroj_data[db_col] = None if pd.isna(val) or str(val).strip() in ["nevykonáva sa", "Nezadané", "Nezadaná"] else str(val).strip()
@@ -697,11 +698,13 @@ with tab_zoznam:
                                 break
                         
                         if existuje_id:
-                            # Aktualizácia existujúceho stroja (iba s povolenými stĺpcami)
-                            supabase.table("stroje").update(stroj_data).eq("id", existuje_id).execute()
+                            # Aktualizácia základných stĺpcov, ktoré sú v DB
+                            if stroj_data:
+                                supabase.table("stroje").update(stroj_data).eq("id", existuje_id).execute()
                         else:
                             # Zápis nového stroja
-                            supabase.table("stroje").insert(stroj_data).execute()
+                            if stroj_data:
+                                supabase.table("stroje").insert(stroj_data).execute()
                             
                         uspesne_importovane += 1
                     
@@ -710,8 +713,7 @@ with tab_zoznam:
                     
                 except Exception as ex:
                     st.error(f"Chyba pri spracovaní Excel súboru: {ex}")
-    
-
+   
     # === 📋 ZOBRAZENIE STROJOV V APLIKÁCII 📋 ===
     if not vsetky_stroje:
         st.info("V databáze nie sú žiadne stroje.")

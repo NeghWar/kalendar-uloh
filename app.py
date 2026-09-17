@@ -731,30 +731,48 @@ with tab_zoznam:
                 with col_nazov:
                     st.markdown(f"### {stroj['nazov']}")
                     
-                    # 1. NAJVYŠŠIE: Zatriedenie podľa legislatívy (VTZ / UTZ)
+                    # 1. NAJVYŠŠIE: Prečistené a väčšie zatriedenie podľa legislatívy (VTZ / UTZ)
                     druh_systemu = stroj.get('druh_systemu')
                     skupina = stroj.get('legislativna_skupina') or "-"
                     druh = stroj.get('legislativny_druh') or "-"
                     
                     if druh_systemu in ["VTZ", "UTZ"]:
+                        # Dynamická farba: VTZ = modrá (#1F4E78), UTZ = zelená (#2E7D32)
                         farba_stitku = "#1F4E78" if druh_systemu == "VTZ" else "#2E7D32"
+                        
+                        # Zobrazí iba čisté hodnoty (napr. VTZ • A • b) vo väčšom fonte (font-size: 0.95em)
                         st.markdown(f"""
-                        <div style='background-color: {farba_stitku}; color: white; padding: 4px 8px; border-radius: 4px; display: inline-block; font-size: 0.82em; font-weight: bold; margin-bottom: 8px;'>
-                            {druh_systemu} • Skupina {skupina} • Druh {druh}
+                        <div style='background-color: {farba_stitku}; color: white; padding: 5px 12px; border-radius: 4px; display: inline-block; font-size: 0.95em; font-weight: bold; margin-bottom: 10px;'>
+                            {druh_systemu} • {skupina} • {druh}
                         </div>
                         """, unsafe_allow_html=True)
                     else:
-                        st.markdown("<div style='color: #777; font-size: 0.85em; font-style: italic; margin-bottom: 8px;'>⚠️ Bez legislatívneho zatriedenia</div>", unsafe_allow_html=True)
+                        st.markdown("<div style='color: #777; font-size: 0.9em; font-style: italic; margin-bottom: 10px;'>⚠️ Bez legislatívneho zatriedenia</div>", unsafe_allow_html=True)
                     
-                    # 2. POD TÝM: Evidenčné čísla usporiadané pod sebou
+                    # 2. POD TÝM: Evidenčné čísla s o niečo väčším písmom a zjednoteným štýlom
                     evidencne = stroj.get('evidencne_cislo') or "Nezadané"
                     vybavenie = stroj.get('cislo_vybavenia') or "Nezadané"
                     
                     st.markdown(f"""
-                    🆔 **Evid. č.:** `{evidencne}`  
-                    🛠️ **Č. vybavenia:** `{vybavenie}`
+                    <div style='font-size: 1.1em; line-height: 1.6;'>
+                        🆔 <b>Evid. č.:</b> <code>{evidencne}</code><br>
+                        🛠️ <b>Č. vybavenia:</b> <code>{vybavenie}</code>
+                    </div>
                     """, unsafe_allow_html=True)
 
+                with col_miesto:
+                    # 3. V DRUHOM STĹPCI: Lokalita, Firma a VOJ s rovnakým štýlom kódu (zelený text code nahradený čistým textom)
+                    firma = stroj.get('firma') or "Nezadaná"
+                    voj = stroj.get('voj') or "Nezadané"
+                    
+                    st.markdown(f"""
+                    <div style='font-size: 1.1em; line-height: 1.6;'>
+                        📍 <b>Umiestnenie:</b> {stroj['umiestnenie'] or 'Nezadané'}<br>
+                        🏢 <b>Firma:</b> {firma}<br>
+                        🏭 <b>VOJ:</b> {voj}
+                    </div>
+                    """, unsafe_allow_html=True)
+                
                 with col_miesto:
                     # 3. V DRUHOM STĹPCI: Lokalita, Firma a pod ňou VOJ
                     firma = stroj.get('firma') or "Nezadaná"

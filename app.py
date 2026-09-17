@@ -882,49 +882,58 @@ with tab_zoznam:
                             st.session_state["aktualne_upravovany_id"] = stroj_id
                         st.rerun()
    
-            # === 🛠️ REŽIM ÚPRAVY PRE STROJ (OPRAVENÉ NAČÍTANIE TERMÍNOV) 🛠️ ===
+            # === 🛠️ REŽIM ÚPRAVY PRE STROJ (OPRAVENÉ S POISTKOU PROTI NONE) 🛠️ ===
             if st.session_state["aktualne_upravovany_id"] == stroj_id:
                 st.info(f"🛠️ Režim úpravy pre stroj: **{stroj['nazov']}**")
                 
-                # Upravená funkcia: Ak chýba posledná revízia, pokúsi sa vyjsť z nasledujúcej
+                # Ošetrená funkcia, ktorá nespadne pri None hodnotách periód
                 def zisti_predvoleny_datum(posledny_kluc, nasledujuci_kluc, minus_roky=1):
                     posledny = stroj.get(posledny_kluc)
                     nasledujuci = stroj.get(nasledujuci_kluc)
                     
+                    # Poistka: Ak je lehota None alebo text, premeníme ju bezpečne na číslo (float/int)
+                    try:
+                        roky_cislo = float(minus_roky) if minus_roky is not None else 1.0
+                    except ValueError:
+                        roky_cislo = 1.0
+
                     # 1. Ak máme v DB zapísanú poslednú revíziu, použijeme ju
                     if posledny:
                         try: return date.fromisoformat(str(posledny).strip())
                         except ValueError: pass
                     
-                    # 2. Ak posledná chýba, ale máme naimportovanú nasledujúcu z Excelu,
-                    # dopočítame orientačný minulý dátum, aby výpočet vpred sedel presne na tvoj Excel
+                    # 2. Ak posledná chýba, dopočítame ju z nasledujúcej pomocou bezpečného čísla
                     if nasledujuci:
                         try:
                             nasl_dt = date.fromisoformat(str(nasledujuci).strip())
-                            return nasl_dt - timedelta(days=int(minus_roky * 365))
+                            return nasl_dt - timedelta(days=int(roky_cislo * 365))
                         except ValueError: pass
                         
                     # 3. Ak nemáme vôbec nič, vrátime dnešok
                     return date.today()
 
-                # Načítanie predvolených hodnôt podľa periód, ktoré prislúchajú kontrolám
+                # Bezpečné načítanie periód s náhradnou hodnotou, ak sú v DB prázdne (None)
+                stroj_p_rev = stroj.get('perioda_reviznej_skusky')
+                if stroj_p_rev is None: stroj_p_rev = 2
+                
+                stroj_p_urad = stroj.get('perioda_uradnej_skusky')
+                if stroj_p_urad is None: stroj_p_urad = 5
+                
+                stroj_p_odbpr = stroj.get('interval_odborna_pr')
+                if stroj_p_odbpr is None: stroj_p_odbpr = 1.0
+                
+                stroj_p_odbsk = stroj.get('perioda_odbornej_skusky')
+                if stroj_p_odbsk is None: stroj_p_odbsk = 1
+
+                # Samotné priradenie hodnôt do formulára
                 db_rev = zisti_predvoleny_datum('posledna_revizia', 'nasledujuca_revizia', minus_roky=1)
-                
-                stroj_p_rev = stroj.get('perioda_reviznej_skusky', 2)
                 db_rev_sk = zisti_predvoleny_datum('posledna_revizna_skuska', 'nasledujuca_revizna_skuska', minus_roky=stroj_p_rev)
-                
                 db_pod_ok = zisti_predvoleny_datum('posledna_podrobna_prehliadka_ok', 'nasledujuca_podrobna_prehliadka_ok', minus_roky=5)
-                
-                stroj_p_urad = stroj.get('perioda_uradnej_skusky', 5)
                 db_urad = zisti_predvoleny_datum('posledna_uradna_skuska', 'nasledujuca_uradna_skuska', minus_roky=stroj_p_urad)
-                
-                stroj_p_odbpr = stroj.get('interval_odborna_pr', 1.0)
                 db_odb_pr = zisti_predvoleny_datum('posledna_odborna_prehliadka', 'nasledujuca_odborna_prehliadka', minus_roky=stroj_p_odbpr)
-                
-                stroj_p_odbsk = stroj.get('perioda_odbornej_skusky', 1)
                 db_odb_sk = zisti_predvoleny_datum('posledna_odborna_skuska', 'nasledujuca_odborna_skuska', minus_roky=stroj_p_odbsk)
-                
                 db_geom = zisti_predvoleny_datum('posledna_geometria', 'nasledujuca_geometria', minus_roky=10)
+
             
 
                 with st.form(key=f"form_edit_{stroj_id}", clear_on_submit=False):

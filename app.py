@@ -645,7 +645,7 @@ with tab_zoznam:
         else:
             st.caption("Nie sú dáta na export.")
     
-    # === 🔵 SEKCIA 2: OPRAVENÝ INTELIGENTNÝ IMPORT Z EXCELU 🔵 ===
+    # === 🔵 SEKCIA 2: OPRAVENÝ IMPORT (1. ČASŤ: OŠETRENIE .0 A DÁTUMOV) 🔵 ===
     with col_imp:
         st.subheader("📥 Import dát")
         nahraty_subor = st.file_uploader("Nahrajte vyplnený Excel súbor (.xlsx):", type=["xlsx"])
@@ -653,10 +653,10 @@ with tab_zoznam:
         if nahraty_subor is not None:
             if st.button("🚀 Spustiť import do databázy", use_container_width=True):
                 try:
-                    # Načítanie hárku
+                    # Načítame excel, pričom vynútime, aby textové stĺpce neboli skomolené na float
                     df_import = pd.read_excel(nahraty_subor)
                     
-                    # Mapa z Excel názvov na názvy stĺpcov v databáze
+                    # Mapa z Excel názvov (z exportu) na presné stĺpce v databáze Supabase
                     mapovanie_na_db = {
                         "Názov stroja": "nazov",
                         "Druh systému (VTZ/UTZ)": "druh_systemu",
@@ -666,16 +666,48 @@ with tab_zoznam:
                         "Číslo vybavenia": "cislo_vybavenia",
                         "Umiestnenie": "umiestnenie",
                         "Firma": "firma",
-                        "VOJ": "voj"
+                        "VOJ": "voj",
+                        # Prepájame exportované termíny na databázové stĺpce nasledujúcich kontrol
+                        "Ďalšia Revízia": "nasledujuca_revizia",
+                        "Ďalšia Revízna skúška": "nasledujuca_revizna_skuska",
+                        "Ďalšia Podrobná prehliadka OK": "nasledujuca_podrobna_prehliadka_ok",
+                        "Ďalšia Odborná prehliadka": "nasledujuca_odborna_prehliadka",
+                        "Ďalšia Odborná skúška": "nasledujuca_odborna_skuska",
+                        "Ďalšia Úradná skúška": "nasledujuca_uradna_skuska",
+                        "Ďalšia Geometria dráhy": "nasledujuca_geometria"
                     }
 
-                    # OPRAVA: Správne zistenie existujúcich stĺpcov z prvého riadku v databáze
+                    def ocisti_float_cislo(hodnota):
+                        """Odstráni otravné .0 z konca čísel vybavenia a evidencie"""
+                        if pd.isna(hodnota):
+                            return None
+                        hodnota_str = str(hodnota).strip()
+                        if hodnota_str.endswith('.0'):
+                            return hodnota_str[:-2]
+                        return hodnota_str
+
+                    def konvertuj_na_iso_datum(hodnota):
+                        """Prevedie slovenský dátum z Excelu na formát YYYY-MM-DD pre Supabase"""
+                        if pd.isna(hodnota):
+                            return None
+                        h_str = str(hodnota).strip()
+                        if h_str in ["nevykonáva sa", "Nezadané", "Nezadaná", ""]:
+                            return None
+                        try:
+                            # Pandas inteligentne rozpozná formáty (napr. 17.09.2026 alebo 2026-09-17)
+                            parsed_dt = pd.to_datetime(hodnota, dayfirst=True, errors='raise')
+                            return parsed_dt.strftime('%Y-%m-%d')
+                        except Exception:
+                            return None
+
+                    # Zistenie existujúcich stĺpcov v DB
                     if vsetky_stroje and len(vsetky_stroje) > 0:
                         existujuce_db_stlpce = set(vsetky_stroje[0].keys())
                     else:
                         existujuce_db_stlpce = {"id", "nazov", "umiestnenie"}
                     
                     uspesne_importovane = 0
+
                     
                     for _, row in df_import.iterrows():
                         nazov_st = row.get("Názov stroja")

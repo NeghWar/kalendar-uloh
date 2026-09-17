@@ -554,7 +554,6 @@ with tab_pridat:
                 except Exception as e:
                     st.error(f"Chyba pri ukladaní stroja: {e}")
 
-  
 # ==========================================
 # ZÁLOŽKA 4: ZOZNAM STROJOV, ÚPRAVA A MAZANIE
 # ==========================================
@@ -567,6 +566,11 @@ with tab_zoznam:
         stlpce_pre_excel = {
             "nazov": "Názov stroja", 
             "umiestnenie": "Umiestnenie",
+            "evidencne_cislo": "Evidenčné číslo",
+            "cislo_vybavenia": "Číslo vybavenia",
+            "druh_systemu": "Druh systému (VTZ/UTZ)",
+            "legislativna_skupina": "Legislatívna skupina",
+            "legislativny_druh": "Legislatívny druh",
             "nasledujuca_revizia": "Ďalšia Revízia", 
             "nasledujuca_revizna_skuska": "Ďalšia Revízna skúška",
             "nasledujuca_podrobna_prehliadka_ok": "Ďalšia Podrobná prehliadka OK",
@@ -584,7 +588,7 @@ with tab_zoznam:
         ]
         
         for col in df_export.columns:
-            if col in stlpce_s_datumami:
+            if col in stlpce_s_datumami and col in df_export.columns:
                 df_export[col] = pd.to_datetime(df_export[col], errors='coerce').dt.strftime('%d.%m.%Y')
         df_export = df_export.fillna("nevykonáva sa")
 
@@ -598,10 +602,11 @@ with tab_zoznam:
             tenka_ciara = Side(border_style="thin", color="D9D9D9")
             mriezka = Border(left=tenka_ciara, right=tenka_ciara, top=tenka_ciara, bottom=tenka_ciara)
             
-            for cell in worksheet[1]:
-                cell.font = hlavicka_font
-                cell.fill = hlavicka_fill
-                cell.border = mriezka
+            for row in worksheet.iter_rows(min_row=1, max_row=1, min_col=1, max_col=worksheet.max_column):
+                for cell in row:
+                    cell.font = hlavicka_font
+                    cell.fill = hlavicka_fill
+                    cell.border = mriezka
             worksheet.freeze_panes = 'A2'
 
             for col in worksheet.columns:
@@ -632,10 +637,31 @@ with tab_zoznam:
                 st.session_state[f"editovanie_{stroj_id}"] = False
 
             with st.container():
-                col_nazov, col_miesto, col_revizie, col_akcia = st.columns([1.5, 1.5, 2, 1])
+                col_nazov, col_miesto, col_revizie, col_akcia = st.columns([2, 1.2, 2, 0.8])
                 
                 with col_nazov:
                     st.markdown(f"### {stroj['nazov']}")
+                    
+                    # --- NOVÉ ÚDAJE POD NÁZVOM ---
+                    evidencne = stroj.get('evidencne_cislo') or "Nezadané"
+                    vybavenie = stroj.get('cislo_vybavenia') or "Nezadané"
+                    st.markdown(f"🆔 **Evid. č.:** `{evidencne}` | **Č. vybavenia:** `{vybavenie}`")
+                    
+                    # Legislatívne zaradenie (VTZ / UTZ)
+                    druh_systemu = stroj.get('druh_systemu')
+                    skupina = stroj.get('legislativna_skupina') or "-"
+                    druh = stroj.get('legislativny_druh') or "-"
+                    
+                    if druh_systemu in ["VTZ", "UTZ"]:
+                        farba_stitku = "#1F4E78" if druh_systemu == "VTZ" else "#2E7D32"
+                        st.markdown(f"""
+                        <div style='background-color: {farba_stitku}; color: white; padding: 4px 8px; border-radius: 4px; display: inline-block; font-size: 0.82em; font-weight: bold; margin-top: 4px;'>
+                            {druh_systemu} • Skupina {skupina} • Druh {druh}
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.markdown("<span style='color: #777; font-size: 0.85em; font-style: italic;'>⚠️ Bez legislatívneho zatriedenia</span>", unsafe_allow_html=True)
+
                 with col_miesto:
                     st.markdown(f"📍 **Umiestnenie:**\n{stroj['umiestnenie'] or 'Nezadané'}")
                 
@@ -688,12 +714,10 @@ with tab_zoznam:
                 if kliknute_upravit:
                     st.session_state[f"editovanie_{stroj_id}"] = not st.session_state[f"editovanie_{stroj_id}"]
                     st.rerun()
-
-                # === 🛠️ REŽIM ÚPRAVY PRE STROJ 🛠️ ===
+                # === 🛠️ REŽIM ÚPRAVY PRE STROJ (2. ČASŤ) 🛠️ ===
                 if st.session_state[f"editovanie_{stroj_id}"]:
                     st.info(f"🛠️ Režim úpravy pre stroj: **{stroj['nazov']}**")
                     
-                    # Načítame IBA to, čo reálne je v databáze (žiadne umelé date.today())
                     db_rev = date.fromisoformat(stroj['posledna_revizia']) if stroj.get('posledna_revizia') else None
                     db_rev_sk = date.fromisoformat(stroj['posledna_revizna_skuska']) if stroj.get('posledna_revizna_skuska') else None
                     db_pod_ok = date.fromisoformat(stroj['posledna_podrobna_prehliadka_ok']) if stroj.get('posledna_podrobna_prehliadka_ok') else None
@@ -711,7 +735,6 @@ with tab_zoznam:
                             
                             st.markdown("---")
                             st.markdown("**1. Revízia (ročne)**")
-                            # Ak je db_rev None, v kalendári bude svietiť prázdne miesto na zadanie
                             new_rev = st.date_input("Dátum poslednej revízie:", db_rev, key=f"inp_rev_{stroj_id}")
                             clear_rev = st.checkbox("🗑️ Vymazať / Nechať nezaevidované", value=False, key=f"clear_rev_{stroj_id}")
 
@@ -729,6 +752,7 @@ with tab_zoznam:
                             st.markdown("**3. Podrobná prehliadka OK (5-ročne)**")
                             new_pod_ok = st.date_input("Dátum poslednej podrobnej pr.:", db_pod_ok, key=f"inp_pod_{stroj_id}")
                             clear_pod_ok = st.checkbox("🗑️ Vymazať / Nechať nezaevidované", value=False, key=f"clear_pod_{stroj_id}")
+                        
                         with e_col2:
                             st.markdown("---")
                             st.markdown("**4. Úradná skúška**")
@@ -769,8 +793,7 @@ with tab_zoznam:
                         new_ma_geom = st.checkbox("Vykonáva sa Geometrické zameranie?", value=stroj.get('vykonava_sa_geometria', False), key=f"chk_geom_{stroj_id}")
                         new_geom = st.date_input("Posledná Geometria dráhy:", db_geom, key=f"inp_geom_{stroj_id}") if new_ma_geom else None
                         clear_geom = st.checkbox("🗑️ Vymazať / Nechať nezaevidované", value=False, key=f"clear_geom_{stroj_id}") if new_ma_geom else False
-                                                                       
-
+                        # === FINÁLNE UKLADANIE ZMIEN (3. ČASŤ) ===
                         kliknute_ulozit = st.form_submit_button("💾 Uložiť zmeny stroja")
                         if kliknute_ulozit:
                             final_rev = None if clear_rev else new_rev
@@ -790,12 +813,13 @@ with tab_zoznam:
                             
                             final_odb_sk = None if clear_odb_sk else new_odb_sk
                             n_odb_sk = vypocitaj_nasledujuci(final_odb_sk, int(new_p_odbsk))
-                            
+
                             final_geom = None if (clear_geom or not new_ma_geom) else new_geom
-                            n_geom = vypocitaj_nasledujuci(final_geom, 10) if (new_ma_geom and final_geom) else None
-                            
-                            pripravene_data = {
-                                "nazov": new_nazov.strip(), 
+                            n_geom = vypocitaj_nasledujuci(final_geom, 10) if new_ma_geom else None
+
+                            # --- ZOSTAVENIE UPDATE SLOVNÍKA ---
+                            update_data = {
+                                "nazov": new_nazov.strip(),
                                 "umiestnenie": new_umiestnenie.strip() if new_umiestnenie else None,
                                 "posledna_revizia": final_rev.isoformat() if final_rev else None,
                                 "nasledujuca_revizia": n_rev.isoformat() if n_rev else None,
@@ -815,13 +839,14 @@ with tab_zoznam:
                                 "posledna_geometria": final_geom.isoformat() if final_geom else None,
                                 "nasledujuca_geometria": n_geom.isoformat() if n_geom else None,
                             }
-                            
+
                             try:
-                                supabase.table("stroje").update(pripravene_data).eq("id", stroj_id).execute()
-                                st.toast("Zmeny boli úspešne uložené! 💾")
+                                supabase.table("stroje").update(update_data).eq("id", stroj_id).execute()
+                                st.toast(f"Stroj '{new_nazov}' úspešne upravený! 💾")
                                 st.session_state[f"editovanie_{stroj_id}"] = False
                                 st.rerun()
-                            except Exception as e:
-                                st.error(f"Nepodarilo sa uložiť zmeny: {e}")
-                st.markdown("---")
-                            
+                            except Exception as err:
+                                st.error(f"Chyba pri zápise zmien: {err}")
+
+                st.markdown("<hr style='margin: 15px 0; border-color: #eee;'>", unsafe_allow_html=True)
+  
